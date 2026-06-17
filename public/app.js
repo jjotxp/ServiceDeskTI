@@ -67,6 +67,7 @@ async function loadConfig() {
   document.title = config.appName;
   document.querySelector("#appName").textContent = config.appName;
   document.querySelector("#emailMode").textContent = `E-mail: ${config.emailMode === "smtp" ? "SMTP ativo" : "modo teste"}`;
+  document.querySelector("#accessMode").textContent = `Acesso: ${config.restrictedAccess ? "restrito" : "aberto"}`;
 }
 
 async function loadTickets() {

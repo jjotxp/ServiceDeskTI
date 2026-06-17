@@ -149,6 +149,11 @@ main {
   color: #075985;
 }
 
+.muted-pill {
+  background: #eef2f6;
+  color: #475569;
+}
+
 .form-grid {
   background: var(--panel);
   border: 1px solid var(--line);

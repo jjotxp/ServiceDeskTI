@@ -37,6 +37,7 @@ PORT=3333
 APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=ti@suaempresa.com
 DATA_DIR=./data
+ALLOWED_REQUESTER_EMAILS=usuario1@suaempresa.com,usuario2@suaempresa.com
 EMAIL_MODE=log
 ```
 
@@ -53,6 +54,8 @@ O sistema registra/enviara e-mails nestes eventos:
 - Novo chamado aberto: enviado para `ADMIN_EMAIL`.
 - Chamado atribuido: enviado para o e-mail do solicitante.
 - Chamado resolvido: enviado para o e-mail do solicitante.
+
+Para limitar quem pode abrir chamados, preencha `ALLOWED_REQUESTER_EMAILS` com os e-mails permitidos separados por virgula. Se essa variavel ficar vazia, qualquer e-mail consegue abrir chamado.
 
 ## Envio real de e-mail
 
@@ -82,6 +85,7 @@ Para publicar na Railway:
 ```env
 APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=seu.email@empresa.com
+ALLOWED_REQUESTER_EMAILS=usuario1@empresa.com,usuario2@empresa.com
 EMAIL_MODE=smtp
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587

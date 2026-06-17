@@ -17,6 +17,7 @@ const config = {
   appName: process.env.APP_NAME || "ServiceDesk TI",
   adminEmail: process.env.ADMIN_EMAIL || "ti@suaempresa.com",
   emailMode: (process.env.EMAIL_MODE || "log").toLowerCase(),
+  allowedRequesterEmails: parseEmailList(process.env.ALLOWED_REQUESTER_EMAILS || ""),
   smtp: {
     host: process.env.SMTP_HOST || "",
     port: Number(process.env.SMTP_PORT || 587),
@@ -37,7 +38,8 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, {
         appName: config.appName,
         adminEmail: config.adminEmail,
-        emailMode: config.emailMode
+        emailMode: config.emailMode,
+        restrictedAccess: config.allowedRequesterEmails.length > 0
       });
     }
 
@@ -71,7 +73,11 @@ const server = http.createServer(async (req, res) => {
 
     return serveStatic(url.pathname, res);
   } catch (error) {
-    console.error(error);
+    if (!error.status || error.status >= 500) {
+      console.error(error);
+    } else {
+      console.warn(error.message);
+    }
     return sendJson(res, error.status || 500, { error: error.status ? error.message : "Erro interno no servidor." });
   }
 });
@@ -123,11 +129,18 @@ function createTicket(payload) {
   }
 
   const now = new Date().toISOString();
+  const requesterEmail = clean(payload.requesterEmail).toLowerCase();
+  if (config.allowedRequesterEmails.length > 0 && !config.allowedRequesterEmails.includes(requesterEmail)) {
+    const error = new Error("Este e-mail nao esta autorizado a abrir chamados.");
+    error.status = 403;
+    throw error;
+  }
+
   const id = nextTicketId();
   return {
     id,
     requesterName: clean(payload.requesterName),
-    requesterEmail: clean(payload.requesterEmail),
+    requesterEmail,
     department: clean(payload.department),
     category: clean(payload.category),
     priority: clean(payload.priority),
@@ -185,6 +198,13 @@ function nextTicketId() {
 
 function clean(value) {
   return String(value || "").trim().slice(0, 5000);
+}
+
+function parseEmailList(value) {
+  return String(value || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
 }
 
 async function readJsonBody(req) {
