@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const dns = require("node:dns").promises;
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
@@ -358,19 +359,23 @@ async function sendMail(message) {
   await sendSmtpMail(message);
 }
 
-function sendSmtpMail(message) {
+async function sendSmtpMail(message) {
   if (!config.smtp.host || !config.smtp.user || !config.smtp.pass) {
     return Promise.reject(new Error("Configure SMTP_HOST, SMTP_USER e SMTP_PASS para envio real."));
   }
 
+  const smtpAddress = await resolveSmtpHost(config.smtp.host);
   const transporter = nodemailer.createTransport({
-    host: config.smtp.host,
+    host: smtpAddress,
     port: config.smtp.port,
     secure: config.smtp.secure,
     requireTLS: config.smtp.port === 587,
     connectionTimeout: config.smtp.timeoutMs,
     greetingTimeout: config.smtp.timeoutMs,
     socketTimeout: config.smtp.timeoutMs,
+    tls: {
+      servername: config.smtp.host
+    },
     auth: {
       user: config.smtp.user,
       pass: config.smtp.pass
@@ -383,4 +388,9 @@ function sendSmtpMail(message) {
     subject: message.subject,
     text: message.text
   });
+}
+
+async function resolveSmtpHost(host) {
+  const records = await dns.lookup(host, { family: 4 });
+  return records.address;
 }
