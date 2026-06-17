@@ -70,6 +70,7 @@ SMTP_SECURE=false
 SMTP_USER=usuario@suaempresa.com
 SMTP_PASS=sua-senha-ou-app-password
 SMTP_FROM="ServiceDesk TI <usuario@suaempresa.com>"
+SMTP_TIMEOUT_MS=15000
 ```
 
 Em Microsoft 365, o SMTP autenticado pode estar bloqueado por politica do tenant. Se isso acontecer, o melhor caminho e trocar essa camada por Microsoft Graph com uma App Registration aprovada pelo administrador.
@@ -95,6 +96,7 @@ SMTP_SECURE=false
 SMTP_USER=usuario@suaempresa.com
 SMTP_PASS=sua-senha-ou-app-password
 SMTP_FROM=ServiceDesk TI <usuario@suaempresa.com>
+SMTP_TIMEOUT_MS=15000
 ```
 
 Nao configure `PORT` na Railway. A propria Railway injeta essa variavel e o app ja usa o valor automaticamente.

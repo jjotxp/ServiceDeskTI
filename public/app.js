@@ -36,6 +36,9 @@ function bindNavigation() {
 function bindForms() {
   ticketForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const button = ticketForm.querySelector("button");
+    button.disabled = true;
+    button.textContent = "Enviando...";
     formMessage.textContent = "Registrando chamado...";
     const payload = Object.fromEntries(new FormData(ticketForm).entries());
     try {
@@ -44,14 +47,15 @@ function bindForms() {
         body: JSON.stringify(payload)
       });
       ticketForm.reset();
-      formMessage.textContent = ticket.notificationWarning
-        ? `Chamado ${ticket.id} aberto, mas houve falha no e-mail.`
-        : `Chamado ${ticket.id} aberto com sucesso.`;
+      formMessage.textContent = `Chamado ${ticket.id} aberto e e-mail enviado com sucesso.`;
       state.mineEmail = ticket.requesterEmail;
       document.querySelector("#mineEmail").value = ticket.requesterEmail;
       await loadTickets();
     } catch (error) {
       formMessage.textContent = error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Abrir chamado";
     }
   });
 
@@ -154,12 +158,19 @@ function ticketNode(ticket, editable) {
     const button = form.querySelector("button");
     button.textContent = "Salvando...";
     button.disabled = true;
-    const updated = await api(`/api/tickets/${ticket.id}`, {
-      method: "PATCH",
-      body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
-    });
-    button.textContent = updated.notificationWarning ? "Salvo, e-mail falhou" : "Salvo";
-    await loadTickets();
+    try {
+      await api(`/api/tickets/${ticket.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
+      });
+      button.textContent = "Salvo e enviado";
+      await loadTickets();
+    } catch (error) {
+      button.textContent = "Falha no e-mail";
+      alert(error.message);
+    } finally {
+      button.disabled = false;
+    }
   });
 
   return node;

@@ -24,7 +24,8 @@ const config = {
     secure: String(process.env.SMTP_SECURE || "false").toLowerCase() === "true",
     user: process.env.SMTP_USER || "",
     pass: process.env.SMTP_PASS || "",
-    from: process.env.SMTP_FROM || process.env.SMTP_USER || "servicedesk@localhost"
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || "servicedesk@localhost",
+    timeoutMs: Number(process.env.SMTP_TIMEOUT_MS || 15000)
   }
 };
 
@@ -54,8 +55,13 @@ const server = http.createServer(async (req, res) => {
       const db = readDb();
       db.tickets.push(ticket);
       writeDb(db);
-      const notification = await safeNotify(() => notifyNewTicket(ticket));
-      if (notification.error) ticket.notificationWarning = notification.error;
+      try {
+        await notifyNewTicket(ticket);
+      } catch (error) {
+        db.tickets = db.tickets.filter((item) => item.id !== ticket.id);
+        writeDb(db);
+        throw mailError(error);
+      }
       return sendJson(res, 201, ticket);
     }
 
@@ -66,10 +72,16 @@ const server = http.createServer(async (req, res) => {
       const ticket = db.tickets.find((item) => item.id === updateMatch[1]);
       if (!ticket) return sendJson(res, 404, { error: "Chamado nao encontrado." });
 
+      const beforeTicket = JSON.parse(JSON.stringify(ticket));
       const events = updateTicket(ticket, payload);
       writeDb(db);
-      const notification = await safeNotify(() => notifyTicketEvents(ticket, events));
-      if (notification.error) ticket.notificationWarning = notification.error;
+      try {
+        await notifyTicketEvents(ticket, events);
+      } catch (error) {
+        Object.assign(ticket, beforeTicket);
+        writeDb(db);
+        throw mailError(error);
+      }
       return sendJson(res, 200, ticket);
     }
 
@@ -272,26 +284,26 @@ async function notifyNewTicket(ticket) {
   });
 }
 
-async function safeNotify(task) {
-  try {
-    await task();
-    return { ok: true };
-  } catch (error) {
-    const detail = normalizeMailError(error);
-    console.error(`Falha ao enviar notificacao: ${detail}`);
-    return { ok: false, error: detail };
-  }
-}
-
 function normalizeMailError(error) {
   const text = String(error && error.message ? error.message : error || "erro desconhecido").trim();
   if (text.includes("535") || text.toLowerCase().includes("authentication")) {
-    return "Chamado salvo, mas o e-mail nao foi enviado: falha de autenticacao SMTP. Confira usuario, senha e SMTP AUTH.";
+    return "E-mail nao enviado: falha de autenticacao SMTP. Confira usuario, senha e SMTP AUTH.";
   }
   if (text.includes("5.7") || text.toLowerCase().includes("smtp auth")) {
-    return "Chamado salvo, mas o e-mail nao foi enviado: SMTP AUTH pode estar bloqueado para essa caixa.";
+    return "E-mail nao enviado: SMTP AUTH pode estar bloqueado para essa caixa.";
   }
-  return `Chamado salvo, mas o e-mail nao foi enviado: ${text.slice(0, 300)}`;
+  if (text.toLowerCase().includes("timeout") || text.toLowerCase().includes("timed out")) {
+    return "E-mail nao enviado: o servidor SMTP demorou demais para responder.";
+  }
+  return `E-mail nao enviado: ${text.slice(0, 300)}`;
+}
+
+function mailError(error) {
+  const detail = normalizeMailError(error);
+  console.error(`Falha ao enviar notificacao: ${detail}`);
+  const wrapped = new Error(detail);
+  wrapped.status = 502;
+  return wrapped;
 }
 
 async function notifyTicketEvents(ticket, events) {
@@ -356,6 +368,9 @@ function sendSmtpMail(message) {
     port: config.smtp.port,
     secure: config.smtp.secure,
     requireTLS: config.smtp.port === 587,
+    connectionTimeout: config.smtp.timeoutMs,
+    greetingTimeout: config.smtp.timeoutMs,
+    socketTimeout: config.smtp.timeoutMs,
     auth: {
       user: config.smtp.user,
       pass: config.smtp.pass
