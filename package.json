@@ -1,0 +1,13 @@
+{
+  "name": "servicedesk-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aplicativo interno de Service Desk para abertura e gestao de chamados.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

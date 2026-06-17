@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ServiceDesk TI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Central de atendimento</p>
+        <h1 id="appName">ServiceDesk TI</h1>
+      </div>
+      <nav class="tabs" aria-label="Navegacao principal">
+        <button class="tab active" data-view="open">Abrir chamado</button>
+        <button class="tab" data-view="mine">Meus chamados</button>
+        <button class="tab" data-view="admin">Painel TI</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="view-open" class="view active">
+        <div class="section-head">
+          <div>
+            <h2>Novo chamado</h2>
+            <p>Registre a solicitacao com o maximo de contexto possivel.</p>
+          </div>
+          <span class="pill" id="emailMode">E-mail: carregando</span>
+        </div>
+
+        <form id="ticketForm" class="form-grid">
+          <label>
+            Nome
+            <input name="requesterName" autocomplete="name" required />
+          </label>
+          <label>
+            E-mail corporativo
+            <input name="requesterEmail" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Setor
+            <input name="department" required placeholder="Financeiro, Operacoes, Comercial..." />
+          </label>
+          <label>
+            Categoria
+            <select name="category" required>
+              <option value="">Selecione</option>
+              <option>Computador/notebook</option>
+              <option>Internet/rede</option>
+              <option>E-mail</option>
+              <option>Microsoft 365/Teams/Outlook</option>
+              <option>Impressora</option>
+              <option>Sistemas internos</option>
+              <option>Acessos e permissoes</option>
+              <option>Outros</option>
+            </select>
+          </label>
+          <label>
+            Prioridade
+            <select name="priority" required>
+              <option>Baixa</option>
+              <option selected>Media</option>
+              <option>Alta</option>
+              <option>Critica</option>
+            </select>
+          </label>
+          <label class="span-2">
+            Titulo
+            <input name="title" required maxlength="120" placeholder="Ex.: Outlook nao abre" />
+          </label>
+          <label class="span-2">
+            Descricao
+            <textarea name="description" required rows="7" placeholder="Descreva o problema, quando comecou, equipamento afetado e mensagens de erro."></textarea>
+          </label>
+          <div class="actions span-2">
+            <button class="primary" type="submit">Abrir chamado</button>
+            <p id="formMessage" class="message" role="status"></p>
+          </div>
+        </form>
+      </section>
+
+      <section id="view-mine" class="view">
+        <div class="section-head">
+          <div>
+            <h2>Meus chamados</h2>
+            <p>Consulte pelo e-mail informado na abertura.</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input id="mineEmail" type="email" placeholder="seu.email@empresa.com" />
+          <button id="mineSearch" class="secondary">Consultar</button>
+        </div>
+        <div id="mineList" class="ticket-list empty">Informe seu e-mail para consultar seus chamados.</div>
+      </section>
+
+      <section id="view-admin" class="view">
+        <div class="section-head">
+          <div>
+            <h2>Painel TI</h2>
+            <p>Acompanhe, filtre e atualize os atendimentos.</p>
+          </div>
+          <button id="refreshAdmin" class="secondary">Atualizar</button>
+        </div>
+        <div class="metrics" id="metrics"></div>
+        <div class="toolbar">
+          <input id="adminSearch" placeholder="Buscar por numero, solicitante, setor ou titulo" />
+          <select id="statusFilter">
+            <option value="">Todos os status</option>
+            <option>Aberto</option>
+            <option>Em atendimento</option>
+            <option>Aguardando usuario</option>
+            <option>Resolvido</option>
+            <option>Cancelado</option>
+          </select>
+        </div>
+        <div id="adminList" class="ticket-list"></div>
+      </section>
+    </main>
+
+    <template id="ticketTemplate">
+      <article class="ticket">
+        <div class="ticket-main">
+          <div class="ticket-title-row">
+            <strong class="ticket-id"></strong>
+            <span class="status"></span>
+            <span class="priority"></span>
+          </div>
+          <h3></h3>
+          <p class="desc"></p>
+          <dl>
+            <div><dt>Solicitante</dt><dd class="requester"></dd></div>
+            <div><dt>Setor</dt><dd class="department"></dd></div>
+            <div><dt>Categoria</dt><dd class="category"></dd></div>
+            <div><dt>Criado</dt><dd class="created"></dd></div>
+          </dl>
+        </div>
+        <form class="admin-edit">
+          <label>
+            Status
+            <select name="status">
+              <option>Aberto</option>
+              <option>Em atendimento</option>
+              <option>Aguardando usuario</option>
+              <option>Resolvido</option>
+              <option>Cancelado</option>
+            </select>
+          </label>
+          <label>
+            Responsavel
+            <input name="assignee" placeholder="Nome do tecnico" />
+          </label>
+          <label>
+            Observacoes TI
+            <textarea name="adminNotes" rows="3"></textarea>
+          </label>
+          <button class="secondary" type="submit">Salvar</button>
+        </form>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
