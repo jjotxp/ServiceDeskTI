@@ -36,6 +36,7 @@ As configuracoes ficam no arquivo `.env`:
 PORT=3333
 APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=ti@suaempresa.com
+DATA_DIR=./data
 EMAIL_MODE=log
 ```
 
@@ -69,6 +70,36 @@ SMTP_FROM="ServiceDesk TI <usuario@suaempresa.com>"
 ```
 
 Em Microsoft 365, o SMTP autenticado pode estar bloqueado por politica do tenant. Se isso acontecer, o melhor caminho e trocar essa camada por Microsoft Graph com uma App Registration aprovada pelo administrador.
+
+## Railway
+
+Para publicar na Railway:
+
+1. Crie um novo projeto na Railway a partir do repositorio GitHub.
+2. Selecione o repositorio `jjotxp/ServiceDeskTI`.
+3. Em `Variables`, configure:
+
+```env
+APP_NAME=ServiceDesk TI
+ADMIN_EMAIL=seu.email@empresa.com
+EMAIL_MODE=smtp
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=usuario@suaempresa.com
+SMTP_PASS=sua-senha-ou-app-password
+SMTP_FROM=ServiceDesk TI <usuario@suaempresa.com>
+```
+
+Nao configure `PORT` na Railway. A propria Railway injeta essa variavel e o app ja usa o valor automaticamente.
+
+Para manter os chamados apos redeploy, crie um volume na Railway e monte em um caminho como `/data`. Depois adicione:
+
+```env
+DATA_DIR=/data
+```
+
+Sem volume persistente, os chamados podem ser perdidos quando a Railway recriar o container.
 
 ## Escopo do MVP
 
