@@ -1,8 +1,8 @@
 const crypto = require("node:crypto");
-const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const nodemailer = require("nodemailer");
 
 const rootDir = __dirname;
 const publicDir = path.join(rootDir, "public");
@@ -347,52 +347,25 @@ async function sendMail(message) {
 }
 
 function sendSmtpMail(message) {
-  return new Promise((resolve, reject) => {
-    if (!config.smtp.host || !config.smtp.user || !config.smtp.pass) {
-      reject(new Error("Configure SMTP_HOST, SMTP_USER e SMTP_PASS para envio real."));
-      return;
+  if (!config.smtp.host || !config.smtp.user || !config.smtp.pass) {
+    return Promise.reject(new Error("Configure SMTP_HOST, SMTP_USER e SMTP_PASS para envio real."));
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: config.smtp.host,
+    port: config.smtp.port,
+    secure: config.smtp.secure,
+    requireTLS: config.smtp.port === 587,
+    auth: {
+      user: config.smtp.user,
+      pass: config.smtp.pass
     }
+  });
 
-    const script = `
-$secure = ConvertTo-SecureString $env:SMTP_PASS -AsPlainText -Force
-$credential = New-Object System.Management.Automation.PSCredential($env:SMTP_USER, $secure)
-$params = @{
-  SmtpServer = $env:SMTP_HOST
-  Port = [int]$env:SMTP_PORT
-  From = $env:SMTP_FROM
-  To = $env:SMTP_TO
-  Subject = $env:SMTP_SUBJECT
-  Body = $env:SMTP_BODY
-  Credential = $credential
-}
-if ($env:SMTP_SECURE -eq 'true' -or $env:SMTP_PORT -eq '587') { $params.UseSsl = $true }
-Send-MailMessage @params
-`;
-
-    const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], {
-      windowsHide: true,
-      env: {
-        ...process.env,
-        SMTP_HOST: config.smtp.host,
-        SMTP_PORT: String(config.smtp.port),
-        SMTP_SECURE: String(config.smtp.secure),
-        SMTP_USER: config.smtp.user,
-        SMTP_PASS: config.smtp.pass,
-        SMTP_FROM: config.smtp.from,
-        SMTP_TO: message.to,
-        SMTP_SUBJECT: message.subject,
-        SMTP_BODY: message.text
-      }
-    });
-
-    let stderr = "";
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString("utf8");
-    });
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(stderr || `Falha ao enviar e-mail SMTP. Codigo ${code}.`));
-    });
+  return transporter.sendMail({
+    from: message.from,
+    to: message.to,
+    subject: message.subject,
+    text: message.text
   });
 }

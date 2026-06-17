@@ -74,6 +74,8 @@ SMTP_FROM="ServiceDesk TI <usuario@suaempresa.com>"
 
 Em Microsoft 365, o SMTP autenticado pode estar bloqueado por politica do tenant. Se isso acontecer, o melhor caminho e trocar essa camada por Microsoft Graph com uma App Registration aprovada pelo administrador.
 
+O envio SMTP usa a dependencia `nodemailer`, instalada automaticamente pela Railway durante o deploy.
+
 ## Railway
 
 Para publicar na Railway:
