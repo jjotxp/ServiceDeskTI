@@ -28,6 +28,14 @@ const config = {
     from: process.env.SMTP_FROM || process.env.SMTP_USER || "servicedesk@localhost",
     timeoutMs: Number(process.env.SMTP_TIMEOUT_MS || 15000),
     maxAttempts: Number(process.env.SMTP_MAX_ATTEMPTS || 3)
+  },
+  graph: {
+    tenantId: process.env.GRAPH_TENANT_ID || "",
+    clientId: process.env.GRAPH_CLIENT_ID || "",
+    clientSecret: process.env.GRAPH_CLIENT_SECRET || "",
+    sender: process.env.GRAPH_SENDER || process.env.SMTP_USER || process.env.ADMIN_EMAIL || "",
+    saveToSentItems: String(process.env.GRAPH_SAVE_TO_SENT_ITEMS || "true").toLowerCase() === "true",
+    timeoutMs: Number(process.env.GRAPH_TIMEOUT_MS || 15000)
   }
 };
 
@@ -351,6 +359,11 @@ async function notifyTicketEvents(ticket, events) {
 
 async function sendMail(message) {
   if (config.emailMode !== "smtp") {
+    if (config.emailMode === "graph") {
+      await sendGraphMail(message);
+      return;
+    }
+
     const line = `[${new Date().toISOString()}] Para: ${message.to}\nAssunto: ${message.subject}\n${message.text}\n---\n`;
     fs.appendFileSync(outboxPath, line, "utf8");
     console.log(`E-mail simulado registrado para ${message.to}: ${message.subject}`);
@@ -409,4 +422,82 @@ async function resolveSmtpHosts(host) {
   if (records.length) return records;
   const fallback = await dns.lookup(host, { family: 4 });
   return [fallback.address];
+}
+
+async function sendGraphMail(message) {
+  if (!config.graph.tenantId || !config.graph.clientId || !config.graph.clientSecret || !config.graph.sender) {
+    throw new Error("Configure GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET e GRAPH_SENDER para envio via Microsoft Graph.");
+  }
+
+  const token = await getGraphToken();
+  const endpoint = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.graph.sender)}/sendMail`;
+  const response = await fetchWithTimeout(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: {
+        subject: message.subject,
+        body: {
+          contentType: "Text",
+          content: message.text
+        },
+        toRecipients: [
+          {
+            emailAddress: {
+              address: message.to
+            }
+          }
+        ]
+      },
+      saveToSentItems: config.graph.saveToSentItems
+    })
+  }, config.graph.timeoutMs);
+
+  if (response.status !== 202) {
+    const detail = await response.text();
+    throw new Error(`Microsoft Graph sendMail falhou (${response.status}): ${detail.slice(0, 500)}`);
+  }
+}
+
+async function getGraphToken() {
+  const tokenEndpoint = `https://login.microsoftonline.com/${encodeURIComponent(config.graph.tenantId)}/oauth2/v2.0/token`;
+  const body = new URLSearchParams({
+    client_id: config.graph.clientId,
+    client_secret: config.graph.clientSecret,
+    scope: "https://graph.microsoft.com/.default",
+    grant_type: "client_credentials"
+  });
+
+  const response = await fetchWithTimeout(tokenEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body
+  }, config.graph.timeoutMs);
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.access_token) {
+    throw new Error(`Falha ao obter token Graph (${response.status}): ${JSON.stringify(payload).slice(0, 500)}`);
+  }
+
+  return payload.access_token;
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Timeout ao acessar ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

@@ -74,9 +74,25 @@ SMTP_TIMEOUT_MS=15000
 SMTP_MAX_ATTEMPTS=3
 ```
 
-Em Microsoft 365, o SMTP autenticado pode estar bloqueado por politica do tenant. Se isso acontecer, o melhor caminho e trocar essa camada por Microsoft Graph com uma App Registration aprovada pelo administrador.
+Em Microsoft 365, o SMTP autenticado pode estar bloqueado por politica do tenant ou indisponivel a partir da hospedagem. Nesse caso, use Microsoft Graph com uma App Registration aprovada pelo administrador.
 
 O envio SMTP usa a dependencia `nodemailer`, instalada automaticamente pela Railway durante o deploy.
+
+### Envio por Microsoft Graph
+
+Para Railway com Microsoft 365, prefira:
+
+```env
+EMAIL_MODE=graph
+GRAPH_TENANT_ID=seu-tenant-id
+GRAPH_CLIENT_ID=seu-client-id
+GRAPH_CLIENT_SECRET=seu-client-secret
+GRAPH_SENDER=joao.silva@aplicativo.net
+GRAPH_SAVE_TO_SENT_ITEMS=true
+GRAPH_TIMEOUT_MS=15000
+```
+
+A App Registration precisa da permissao de aplicativo `Mail.Send` no Microsoft Graph e consentimento de administrador. O endpoint usado e `POST /users/{id | userPrincipalName}/sendMail`.
 
 ## Railway
 
@@ -99,6 +115,18 @@ SMTP_PASS=sua-senha-ou-app-password
 SMTP_FROM=ServiceDesk TI <usuario@suaempresa.com>
 SMTP_TIMEOUT_MS=15000
 SMTP_MAX_ATTEMPTS=3
+```
+
+Se SMTP continuar com timeout na Railway, use Microsoft Graph:
+
+```env
+EMAIL_MODE=graph
+GRAPH_TENANT_ID=seu-tenant-id
+GRAPH_CLIENT_ID=seu-client-id
+GRAPH_CLIENT_SECRET=seu-client-secret
+GRAPH_SENDER=usuario@suaempresa.com
+GRAPH_SAVE_TO_SENT_ITEMS=true
+GRAPH_TIMEOUT_MS=15000
 ```
 
 Nao configure `PORT` na Railway. A propria Railway injeta essa variavel e o app ja usa o valor automaticamente.
