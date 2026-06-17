@@ -1,6 +1,7 @@
 const state = {
   tickets: [],
-  mineEmail: ""
+  mineEmail: "",
+  supportAgents: []
 };
 
 const tabs = document.querySelectorAll(".tab");
@@ -72,8 +73,9 @@ async function loadConfig() {
   const config = await api("/api/config");
   document.title = config.appName;
   document.querySelector("#appName").textContent = config.appName;
-  document.querySelector("#emailMode").textContent = `E-mail: ${config.emailMode === "smtp" ? "SMTP ativo" : "modo teste"}`;
+  document.querySelector("#emailMode").textContent = `E-mail: ${config.emailMode === "graph" ? "Graph ativo" : config.emailMode === "smtp" ? "SMTP ativo" : "modo teste"}`;
   document.querySelector("#accessMode").textContent = `Acesso: ${config.restrictedAccess ? "restrito" : "aberto"}`;
+  state.supportAgents = config.supportAgents || [];
 }
 
 async function loadTickets() {
@@ -151,7 +153,7 @@ function ticketNode(ticket, editable) {
   }
 
   form.status.value = ticket.status;
-  form.assignee.value = ticket.assignee || "";
+  fillAssigneeOptions(form.assignee, ticket.assignee || "");
   form.adminNotes.value = ticket.adminNotes || "";
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -174,6 +176,18 @@ function ticketNode(ticket, editable) {
   });
 
   return node;
+}
+
+function fillAssigneeOptions(select, currentValue) {
+  const agents = state.supportAgents.length ? state.supportAgents : ["João Pedro da Silva"];
+  select.innerHTML = '<option value="">Selecione</option>';
+  agents.forEach((agent) => {
+    const option = document.createElement("option");
+    option.value = agent;
+    option.textContent = agent;
+    select.appendChild(option);
+  });
+  select.value = agents.includes(currentValue) ? currentValue : "";
 }
 
 function renderMetrics() {

@@ -19,6 +19,7 @@ const config = {
   adminEmail: process.env.ADMIN_EMAIL || "ti@suaempresa.com",
   emailMode: (process.env.EMAIL_MODE || "log").toLowerCase(),
   allowedRequesterEmails: parseEmailList(process.env.ALLOWED_REQUESTER_EMAILS || ""),
+  supportAgents: parseList(process.env.SUPPORT_AGENTS || "João Pedro da Silva"),
   smtp: {
     host: process.env.SMTP_HOST || "",
     port: Number(process.env.SMTP_PORT || 587),
@@ -50,7 +51,8 @@ const server = http.createServer(async (req, res) => {
         appName: config.appName,
         adminEmail: config.adminEmail,
         emailMode: config.emailMode,
-        restrictedAccess: config.allowedRequesterEmails.length > 0
+        restrictedAccess: config.allowedRequesterEmails.length > 0,
+        supportAgents: config.supportAgents
       });
     }
 
@@ -189,7 +191,9 @@ function updateTicket(ticket, payload) {
   const before = { status: ticket.status, assignee: ticket.assignee, adminNotes: ticket.adminNotes };
   const allowedStatuses = ["Aberto", "Em atendimento", "Aguardando usuario", "Resolvido", "Cancelado"];
   if (payload.status && allowedStatuses.includes(payload.status)) ticket.status = payload.status;
-  if (typeof payload.assignee === "string") ticket.assignee = clean(payload.assignee);
+  if (typeof payload.assignee === "string") {
+    ticket.assignee = clean(payload.assignee);
+  }
   if (typeof payload.adminNotes === "string") ticket.adminNotes = clean(payload.adminNotes);
   ticket.updatedAt = new Date().toISOString();
 
@@ -198,7 +202,7 @@ function updateTicket(ticket, payload) {
   if (before.status !== ticket.status) changes.push(`Status: ${before.status} -> ${ticket.status}`);
   if (before.assignee !== ticket.assignee) {
     changes.push(`Responsavel atualizado.`);
-    if (ticket.assignee) events.push("assigned");
+    if (ticket.assignee && ticket.status !== "Resolvido") events.push("assigned");
   }
   if (before.adminNotes !== ticket.adminNotes) changes.push(`Observacao atualizada.`);
   if (before.status !== "Resolvido" && ticket.status === "Resolvido") events.push("resolved");
@@ -225,9 +229,13 @@ function clean(value) {
 }
 
 function parseEmailList(value) {
+  return parseList(value).map((email) => email.toLowerCase());
+}
+
+function parseList(value) {
   return String(value || "")
     .split(",")
-    .map((email) => email.trim().toLowerCase())
+    .map((item) => item.trim())
     .filter(Boolean);
 }
 

@@ -38,6 +38,7 @@ APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=ti@suaempresa.com
 DATA_DIR=./data
 ALLOWED_REQUESTER_EMAILS=usuario1@suaempresa.com,usuario2@suaempresa.com
+SUPPORT_AGENTS=João Pedro da Silva
 EMAIL_MODE=log
 ```
 
@@ -56,6 +57,8 @@ O sistema registra/enviara e-mails nestes eventos:
 - Chamado resolvido: enviado para o e-mail do solicitante.
 
 Para limitar quem pode abrir chamados, preencha `ALLOWED_REQUESTER_EMAILS` com os e-mails permitidos separados por virgula. Se essa variavel ficar vazia, qualquer e-mail consegue abrir chamado.
+
+Para configurar os atendentes exibidos no campo `Responsavel`, preencha `SUPPORT_AGENTS` com os nomes separados por virgula.
 
 ## Envio real de e-mail
 
@@ -106,6 +109,7 @@ Para publicar na Railway:
 APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=seu.email@empresa.com
 ALLOWED_REQUESTER_EMAILS=usuario1@empresa.com,usuario2@empresa.com
+SUPPORT_AGENTS=João Pedro da Silva
 EMAIL_MODE=smtp
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
