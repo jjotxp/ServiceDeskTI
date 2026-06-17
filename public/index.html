@@ -12,12 +12,24 @@
         <p class="eyebrow">Central de atendimento</p>
         <h1 id="appName">ServiceDesk TI</h1>
       </div>
+      <div id="userBar" class="user-bar" hidden>
+        <span id="userName"></span>
+        <a href="/auth/logout">Sair</a>
+      </div>
       <nav class="tabs" aria-label="Navegacao principal">
         <button class="tab active" data-view="open">Abrir chamado</button>
         <button class="tab" data-view="mine">Meus chamados</button>
         <button class="tab" data-view="admin">Painel TI</button>
       </nav>
     </header>
+
+    <section id="authGate" class="auth-gate" hidden>
+      <div>
+        <h2>Entrar no ServiceDesk</h2>
+        <p>Use sua conta corporativa Microsoft para abrir e acompanhar chamados.</p>
+      </div>
+      <a class="primary login-button" href="/auth/login">Entrar com Microsoft</a>
+    </section>
 
     <main>
       <section id="view-open" class="view active">

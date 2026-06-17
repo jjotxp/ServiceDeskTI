@@ -17,6 +17,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -35,6 +39,44 @@ body {
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+.user-bar {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.user-bar a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.auth-gate {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: flex;
+  justify-content: space-between;
+  margin: 36px auto;
+  max-width: 840px;
+  padding: 24px;
+}
+
+.auth-gate p {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
+.login-button {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
 }
 
 .eyebrow {
@@ -367,6 +409,7 @@ dd {
 
 @media (max-width: 860px) {
   .topbar,
+  .auth-gate,
   .section-head {
     align-items: stretch;
     flex-direction: column;

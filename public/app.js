@@ -1,7 +1,10 @@
 const state = {
   tickets: [],
   mineEmail: "",
-  supportAgents: []
+  supportAgents: [],
+  authEnabled: false,
+  currentUser: null,
+  isSupport: false
 };
 
 const tabs = document.querySelectorAll(".tab");
@@ -18,6 +21,12 @@ async function init() {
   bindNavigation();
   bindForms();
   await loadConfig();
+  await loadMe();
+  if (state.authEnabled && !state.currentUser) {
+    showAuthGate();
+    return;
+  }
+  setupAuthenticatedUi();
   await loadTickets();
 }
 
@@ -76,6 +85,50 @@ async function loadConfig() {
   document.querySelector("#emailMode").textContent = `E-mail: ${config.emailMode === "graph" ? "Graph ativo" : config.emailMode === "smtp" ? "SMTP ativo" : "modo teste"}`;
   document.querySelector("#accessMode").textContent = `Acesso: ${config.restrictedAccess ? "restrito" : "aberto"}`;
   state.supportAgents = config.supportAgents || [];
+  state.authEnabled = Boolean(config.authEnabled);
+  if (config.user) {
+    state.currentUser = config.user;
+    state.isSupport = Boolean(config.isSupport);
+  }
+}
+
+async function loadMe() {
+  if (!state.authEnabled) return;
+  const me = await api("/api/me");
+  if (me.authenticated) {
+    state.currentUser = me.user;
+    state.isSupport = Boolean(me.isSupport);
+  }
+}
+
+function showAuthGate() {
+  document.querySelector("#authGate").hidden = false;
+  document.querySelector("main").hidden = true;
+  document.querySelector(".tabs").hidden = true;
+  document.querySelector("#userBar").hidden = true;
+}
+
+function setupAuthenticatedUi() {
+  document.querySelector("#authGate").hidden = true;
+  document.querySelector("main").hidden = false;
+  document.querySelector(".tabs").hidden = false;
+
+  if (state.currentUser) {
+    document.querySelector("#userName").textContent = `${state.currentUser.name} (${state.currentUser.email})`;
+    document.querySelector("#userBar").hidden = false;
+    ticketForm.requesterName.value = state.currentUser.name;
+    ticketForm.requesterEmail.value = state.currentUser.email;
+    ticketForm.requesterName.readOnly = true;
+    ticketForm.requesterEmail.readOnly = true;
+    document.querySelector("#mineEmail").value = state.currentUser.email;
+    document.querySelector("#mineEmail").readOnly = true;
+    state.mineEmail = state.currentUser.email;
+  }
+
+  const adminTab = document.querySelector('[data-view="admin"]');
+  if (adminTab && !state.isSupport) {
+    adminTab.hidden = true;
+  }
 }
 
 async function loadTickets() {
@@ -95,6 +148,11 @@ async function api(url, options = {}) {
 }
 
 function renderAdmin() {
+  if (state.authEnabled && !state.isSupport) {
+    adminList.className = "ticket-list empty";
+    adminList.textContent = "Apenas atendentes podem acessar o Painel TI.";
+    return;
+  }
   renderMetrics();
   const term = document.querySelector("#adminSearch").value.trim().toLowerCase();
   const status = document.querySelector("#statusFilter").value;

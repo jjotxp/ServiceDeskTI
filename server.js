@@ -3,6 +3,7 @@ const dns = require("node:dns").promises;
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const msal = require("@azure/msal-node");
 const nodemailer = require("nodemailer");
 
 const rootDir = __dirname;
@@ -10,6 +11,7 @@ const publicDir = path.join(rootDir, "public");
 const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(rootDir, "data");
 const dbPath = path.join(dataDir, "tickets.json");
 const outboxPath = path.join(dataDir, "email-outbox.log");
+const sessions = new Map();
 
 loadEnv(path.join(rootDir, ".env"));
 
@@ -20,6 +22,17 @@ const config = {
   emailMode: (process.env.EMAIL_MODE || "log").toLowerCase(),
   allowedRequesterEmails: parseEmailList(process.env.ALLOWED_REQUESTER_EMAILS || ""),
   allowedRequesterDomains: parseDomainList(process.env.ALLOWED_REQUESTER_DOMAINS || ""),
+  auth: {
+    mode: (process.env.AUTH_MODE || "off").toLowerCase(),
+    tenantId: process.env.AUTH_TENANT_ID || process.env.GRAPH_TENANT_ID || "",
+    clientId: process.env.AUTH_CLIENT_ID || process.env.GRAPH_CLIENT_ID || "",
+    clientSecret: process.env.AUTH_CLIENT_SECRET || process.env.GRAPH_CLIENT_SECRET || "",
+    redirectUri: process.env.AUTH_REDIRECT_URI || `http://localhost:${Number(process.env.PORT || 3333)}/auth/callback`,
+    supportUsers: parseEmailList(process.env.SUPPORT_USERS || process.env.ADMIN_USERS || process.env.ADMIN_EMAIL || ""),
+    adminUsers: parseEmailList(process.env.ADMIN_USERS || process.env.ADMIN_EMAIL || ""),
+    supportGroupIds: parseList(process.env.ENTRA_SUPPORT_GROUP_IDS || "").map((id) => id.toLowerCase()),
+    adminGroupIds: parseList(process.env.ENTRA_ADMIN_GROUP_IDS || "").map((id) => id.toLowerCase())
+  },
   supportAgents: parseList(process.env.SUPPORT_AGENTS || "João Pedro da Silva"),
   smtp: {
     host: process.env.SMTP_HOST || "",
@@ -42,28 +55,67 @@ const config = {
 };
 
 ensureStore();
+const authEnabled = config.auth.mode === "entra";
+const msalClient = authEnabled ? createMsalClient() : null;
 
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    if (url.pathname === "/auth/login" && req.method === "GET") {
+      return startLogin(req, res);
+    }
+
+    if (url.pathname === "/auth/callback" && req.method === "GET") {
+      return finishLogin(req, res, url);
+    }
+
+    if (url.pathname === "/auth/logout" && req.method === "GET") {
+      return logout(req, res);
+    }
+
     if (url.pathname === "/api/config" && req.method === "GET") {
+      const user = getCurrentUser(req);
       return sendJson(res, 200, {
         appName: config.appName,
         adminEmail: config.adminEmail,
         emailMode: config.emailMode,
+        authEnabled,
+        user,
+        isSupport: Boolean(user && isSupportUser(user)),
+        isAdmin: Boolean(user && isAdminUser(user)),
         restrictedAccess: config.allowedRequesterEmails.length > 0 || config.allowedRequesterDomains.length > 0,
         supportAgents: config.supportAgents
       });
     }
 
+    if (url.pathname === "/api/me" && req.method === "GET") {
+      const user = getCurrentUser(req);
+      if (!user) return sendJson(res, 200, { authenticated: false, loginUrl: "/auth/login" });
+      return sendJson(res, 200, {
+        authenticated: true,
+        user,
+        isSupport: isSupportUser(user),
+        isAdmin: isAdminUser(user)
+      });
+    }
+
     if (url.pathname === "/api/tickets" && req.method === "GET") {
+      const user = requireUser(req);
       const db = readDb();
-      return sendJson(res, 200, db.tickets.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      const tickets = isSupportUser(user)
+        ? db.tickets
+        : db.tickets.filter((ticket) => ticket.requesterEmail === user.email);
+      return sendJson(res, 200, tickets.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     }
 
     if (url.pathname === "/api/tickets" && req.method === "POST") {
+      const user = requireUser(req);
       const payload = await readJsonBody(req);
+      if (authEnabled) {
+        payload.requesterName = user.name;
+        payload.requesterEmail = user.email;
+      }
       const ticket = createTicket(payload);
       const db = readDb();
       db.tickets.push(ticket);
@@ -80,6 +132,12 @@ const server = http.createServer(async (req, res) => {
 
     const updateMatch = url.pathname.match(/^\/api\/tickets\/([^/]+)$/);
     if (updateMatch && req.method === "PATCH") {
+      const user = requireUser(req);
+      if (!isSupportUser(user)) {
+        const error = new Error("Apenas atendentes podem atualizar chamados.");
+        error.status = 403;
+        throw error;
+      }
       const payload = await readJsonBody(req);
       const db = readDb();
       const ticket = db.tickets.find((item) => item.id === updateMatch[1]);
@@ -112,6 +170,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(config.port, () => {
   console.log(`${config.appName} rodando em http://localhost:${config.port}`);
   console.log(`Modo de e-mail: ${config.emailMode}`);
+  console.log(`Autenticacao: ${authEnabled ? "entra" : "desativada"}`);
 });
 
 function loadEnv(filePath) {
@@ -128,6 +187,160 @@ function loadEnv(filePath) {
     }
     if (!process.env[key]) process.env[key] = value;
   }
+}
+
+function createMsalClient() {
+  if (!config.auth.tenantId || !config.auth.clientId || !config.auth.clientSecret) {
+    throw new Error("AUTH_MODE=entra exige AUTH_TENANT_ID, AUTH_CLIENT_ID e AUTH_CLIENT_SECRET.");
+  }
+
+  return new msal.ConfidentialClientApplication({
+    auth: {
+      clientId: config.auth.clientId,
+      authority: `https://login.microsoftonline.com/${config.auth.tenantId}`,
+      clientSecret: config.auth.clientSecret
+    }
+  });
+}
+
+async function startLogin(req, res) {
+  if (!authEnabled) return redirect(res, "/");
+  const state = crypto.randomBytes(24).toString("hex");
+  const authUrl = await msalClient.getAuthCodeUrl({
+    scopes: ["openid", "profile", "email"],
+    redirectUri: config.auth.redirectUri,
+    state
+  });
+
+  res.writeHead(302, {
+    Location: authUrl,
+    "Set-Cookie": cookieHeader("sd_auth_state", state, req, 600)
+  });
+  res.end();
+}
+
+async function finishLogin(req, res, url) {
+  if (!authEnabled) return redirect(res, "/");
+  const cookies = parseCookies(req);
+  const state = url.searchParams.get("state") || "";
+  const code = url.searchParams.get("code") || "";
+  if (!code || !state || state !== cookies.sd_auth_state) {
+    return sendText(res, 400, "Falha na autenticacao: estado invalido.");
+  }
+
+  const result = await msalClient.acquireTokenByCode({
+    code,
+    scopes: ["openid", "profile", "email"],
+    redirectUri: config.auth.redirectUri
+  });
+  const user = userFromClaims(result.idTokenClaims || {});
+  if (!user.email || !isRequesterAllowed(user.email)) {
+    return sendText(res, 403, "Sua conta nao esta autorizada para acessar o ServiceDesk.");
+  }
+
+  const sessionId = crypto.randomBytes(32).toString("hex");
+  sessions.set(sessionId, {
+    user,
+    expiresAt: Date.now() + 8 * 60 * 60 * 1000
+  });
+
+  res.writeHead(302, {
+    Location: "/",
+    "Set-Cookie": [
+      cookieHeader("sd_session", sessionId, req, 8 * 60 * 60),
+      clearCookieHeader("sd_auth_state", req)
+    ]
+  });
+  res.end();
+}
+
+function logout(req, res) {
+  const cookies = parseCookies(req);
+  if (cookies.sd_session) sessions.delete(cookies.sd_session);
+  res.writeHead(302, {
+    Location: "/",
+    "Set-Cookie": clearCookieHeader("sd_session", req)
+  });
+  res.end();
+}
+
+function userFromClaims(claims) {
+  const email = String(claims.preferred_username || claims.email || claims.upn || "").toLowerCase();
+  return {
+    name: String(claims.name || email || "Usuario"),
+    email,
+    groups: Array.isArray(claims.groups) ? claims.groups.map((group) => String(group).toLowerCase()) : []
+  };
+}
+
+function getCurrentUser(req) {
+  if (!authEnabled) return null;
+  const sessionId = parseCookies(req).sd_session;
+  if (!sessionId) return null;
+  const session = sessions.get(sessionId);
+  if (!session || session.expiresAt < Date.now()) {
+    sessions.delete(sessionId);
+    return null;
+  }
+  return session.user;
+}
+
+function requireUser(req) {
+  if (!authEnabled) return { name: "Modo local", email: "", groups: [] };
+  const user = getCurrentUser(req);
+  if (!user) {
+    const error = new Error("Voce precisa entrar com sua conta corporativa.");
+    error.status = 401;
+    throw error;
+  }
+  return user;
+}
+
+function isSupportUser(user) {
+  if (!authEnabled) return true;
+  if (!user) return false;
+  if (config.auth.supportUsers.includes(user.email) || config.auth.adminUsers.includes(user.email)) return true;
+  return user.groups.some((group) => config.auth.supportGroupIds.includes(group) || config.auth.adminGroupIds.includes(group));
+}
+
+function isAdminUser(user) {
+  if (!authEnabled) return true;
+  if (!user) return false;
+  if (config.auth.adminUsers.includes(user.email)) return true;
+  return user.groups.some((group) => config.auth.adminGroupIds.includes(group));
+}
+
+function parseCookies(req) {
+  const header = req.headers.cookie || "";
+  return Object.fromEntries(
+    header
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const eq = part.indexOf("=");
+        return eq === -1 ? [part, ""] : [part.slice(0, eq), decodeURIComponent(part.slice(eq + 1))];
+      })
+  );
+}
+
+function cookieHeader(name, value, req, maxAgeSeconds) {
+  const secure = isSecureRequest(req) ? "; Secure" : "";
+  return `${name}=${encodeURIComponent(value)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`;
+}
+
+function clearCookieHeader(name, req) {
+  const secure = isSecureRequest(req) ? "; Secure" : "";
+  return `${name}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure}`;
+}
+
+function isSecureRequest(req) {
+  return req.headers["x-forwarded-proto"] === "https";
+}
+
+function redirect(res, location) {
+  res.writeHead(302, { Location: location });
+  res.end();
 }
 
 function ensureStore() {
@@ -271,6 +484,14 @@ function sendJson(res, status, payload) {
     "Cache-Control": "no-store"
   });
   res.end(JSON.stringify(payload));
+}
+
+function sendText(res, status, text) {
+  res.writeHead(status, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(text);
 }
 
 function serveStatic(urlPath, res) {

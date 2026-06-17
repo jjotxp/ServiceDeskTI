@@ -69,6 +69,42 @@ Com essa configuracao, somente e-mails terminados em `@aplicativo.net` conseguem
 
 Para configurar os atendentes exibidos no campo `Responsavel`, preencha `SUPPORT_AGENTS` com os nomes separados por virgula.
 
+## Autenticacao com Microsoft Entra ID
+
+Para exigir login corporativo, configure estas variaveis na Railway:
+
+```env
+AUTH_MODE=entra
+AUTH_TENANT_ID=Directory tenant ID
+AUTH_CLIENT_ID=Application client ID
+AUTH_CLIENT_SECRET=Client secret value
+AUTH_REDIRECT_URI=https://sua-url-da-railway/auth/callback
+ADMIN_USERS=joao.silva@aplicativo.net
+SUPPORT_USERS=joao.silva@aplicativo.net
+```
+
+No Entra ID, use a App Registration do ServiceDesk e adicione uma plataforma `Web` com Redirect URI:
+
+```text
+https://sua-url-da-railway/auth/callback
+```
+
+Com `AUTH_MODE=entra`, o app passa a:
+
+- exigir login Microsoft antes de abrir chamados;
+- usar automaticamente o nome e e-mail da conta logada;
+- permitir que usuarios comuns vejam apenas os proprios chamados;
+- permitir acesso ao `Painel TI` apenas para e-mails em `SUPPORT_USERS` ou `ADMIN_USERS`.
+
+Opcionalmente, voce pode usar grupos do Entra para permissao do Painel TI. Para isso, configure o app registration para emitir grupos no token e preencha:
+
+```env
+ENTRA_SUPPORT_GROUP_IDS=id-do-grupo-atendentes
+ENTRA_ADMIN_GROUP_IDS=id-do-grupo-admins
+```
+
+Se grupos nao forem configurados no token, use `SUPPORT_USERS` e `ADMIN_USERS` por e-mail.
+
 ## Envio real de e-mail
 
 Quando voce tiver os dados do provedor, altere o `.env` para `EMAIL_MODE=smtp` e complete:
@@ -120,6 +156,13 @@ ADMIN_EMAIL=seu.email@empresa.com
 ALLOWED_REQUESTER_EMAILS=usuario1@empresa.com,usuario2@empresa.com
 ALLOWED_REQUESTER_DOMAINS=aplicativo.net
 SUPPORT_AGENTS=João Pedro da Silva
+AUTH_MODE=entra
+AUTH_TENANT_ID=seu-tenant-id
+AUTH_CLIENT_ID=seu-client-id
+AUTH_CLIENT_SECRET=seu-client-secret
+AUTH_REDIRECT_URI=https://seu-app.up.railway.app/auth/callback
+ADMIN_USERS=joao.silva@aplicativo.net
+SUPPORT_USERS=joao.silva@aplicativo.net
 EMAIL_MODE=smtp
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587
