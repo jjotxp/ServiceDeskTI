@@ -38,6 +38,7 @@ APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=ti@suaempresa.com
 DATA_DIR=./data
 ALLOWED_REQUESTER_EMAILS=usuario1@suaempresa.com,usuario2@suaempresa.com
+ALLOWED_REQUESTER_DOMAINS=aplicativo.net
 SUPPORT_AGENTS=João Pedro da Silva
 EMAIL_MODE=log
 ```
@@ -57,6 +58,14 @@ O sistema registra/enviara e-mails nestes eventos:
 - Chamado resolvido: enviado para o e-mail do solicitante.
 
 Para limitar quem pode abrir chamados, preencha `ALLOWED_REQUESTER_EMAILS` com os e-mails permitidos separados por virgula. Se essa variavel ficar vazia, qualquer e-mail consegue abrir chamado.
+
+Para limitar por dominio corporativo, use `ALLOWED_REQUESTER_DOMAINS`:
+
+```env
+ALLOWED_REQUESTER_DOMAINS=aplicativo.net
+```
+
+Com essa configuracao, somente e-mails terminados em `@aplicativo.net` conseguem abrir chamados.
 
 Para configurar os atendentes exibidos no campo `Responsavel`, preencha `SUPPORT_AGENTS` com os nomes separados por virgula.
 
@@ -109,6 +118,7 @@ Para publicar na Railway:
 APP_NAME=ServiceDesk TI
 ADMIN_EMAIL=seu.email@empresa.com
 ALLOWED_REQUESTER_EMAILS=usuario1@empresa.com,usuario2@empresa.com
+ALLOWED_REQUESTER_DOMAINS=aplicativo.net
 SUPPORT_AGENTS=João Pedro da Silva
 EMAIL_MODE=smtp
 SMTP_HOST=smtp.office365.com

@@ -19,6 +19,7 @@ const config = {
   adminEmail: process.env.ADMIN_EMAIL || "ti@suaempresa.com",
   emailMode: (process.env.EMAIL_MODE || "log").toLowerCase(),
   allowedRequesterEmails: parseEmailList(process.env.ALLOWED_REQUESTER_EMAILS || ""),
+  allowedRequesterDomains: parseDomainList(process.env.ALLOWED_REQUESTER_DOMAINS || ""),
   supportAgents: parseList(process.env.SUPPORT_AGENTS || "João Pedro da Silva"),
   smtp: {
     host: process.env.SMTP_HOST || "",
@@ -51,7 +52,7 @@ const server = http.createServer(async (req, res) => {
         appName: config.appName,
         adminEmail: config.adminEmail,
         emailMode: config.emailMode,
-        restrictedAccess: config.allowedRequesterEmails.length > 0,
+        restrictedAccess: config.allowedRequesterEmails.length > 0 || config.allowedRequesterDomains.length > 0,
         supportAgents: config.supportAgents
       });
     }
@@ -156,8 +157,8 @@ function createTicket(payload) {
 
   const now = new Date().toISOString();
   const requesterEmail = clean(payload.requesterEmail).toLowerCase();
-  if (config.allowedRequesterEmails.length > 0 && !config.allowedRequesterEmails.includes(requesterEmail)) {
-    const error = new Error("Este e-mail nao esta autorizado a abrir chamados.");
+  if (!isRequesterAllowed(requesterEmail)) {
+    const error = new Error("Este e-mail nao esta autorizado a abrir chamados. Use seu e-mail corporativo.");
     error.status = 403;
     throw error;
   }
@@ -232,11 +233,22 @@ function parseEmailList(value) {
   return parseList(value).map((email) => email.toLowerCase());
 }
 
+function parseDomainList(value) {
+  return parseList(value).map((domain) => domain.replace(/^@/, "").toLowerCase());
+}
+
 function parseList(value) {
   return String(value || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function isRequesterAllowed(email) {
+  if (!config.allowedRequesterEmails.length && !config.allowedRequesterDomains.length) return true;
+  if (config.allowedRequesterEmails.includes(email)) return true;
+  const domain = email.split("@")[1] || "";
+  return config.allowedRequesterDomains.includes(domain);
 }
 
 async function readJsonBody(req) {
