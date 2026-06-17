@@ -36,18 +36,44 @@
         <div class="section-head">
           <div>
             <h2>Novo chamado</h2>
-            <p>Registre a solicitacao com o maximo de contexto possivel.</p>
+            <p>Informe o problema para que a TI consiga priorizar e resolver com agilidade.</p>
           </div>
           <span class="pill" id="emailMode">E-mail: carregando</span>
           <span class="pill muted-pill" id="accessMode">Acesso: carregando</span>
         </div>
 
+        <div id="successNotice" class="success-notice" hidden>
+          <div>
+            <strong>Chamado aberto com sucesso</strong>
+            <p id="successMessage"></p>
+          </div>
+          <button id="dismissSuccess" class="secondary" type="button">Ok</button>
+        </div>
+
+        <div id="accountCard" class="account-card" hidden>
+          <div>
+            <span>Conta logada</span>
+            <strong id="accountName"></strong>
+            <p id="accountEmail"></p>
+          </div>
+        </div>
+
+        <aside class="guidance">
+          <strong>Antes de enviar, inclua:</strong>
+          <ul>
+            <li>qual equipamento, sistema ou acesso foi afetado;</li>
+            <li>desde quando o problema acontece;</li>
+            <li>mensagem de erro ou comportamento observado;</li>
+            <li>urgencia e impacto no trabalho.</li>
+          </ul>
+        </aside>
+
         <form id="ticketForm" class="form-grid">
-          <label>
+          <label class="identity-field">
             Nome
             <input name="requesterName" autocomplete="name" required />
           </label>
-          <label>
+          <label class="identity-field">
             E-mail corporativo
             <input name="requesterEmail" type="email" autocomplete="email" required />
           </label>
@@ -80,11 +106,11 @@
           </label>
           <label class="span-2">
             Titulo
-            <input name="title" required maxlength="120" placeholder="Ex.: Outlook nao abre" />
+            <input name="title" required maxlength="120" placeholder="Ex.: Outlook nao abre no notebook do financeiro" />
           </label>
           <label class="span-2">
             Descricao
-            <textarea name="description" required rows="7" placeholder="Descreva o problema, quando comecou, equipamento afetado e mensagens de erro."></textarea>
+            <textarea name="description" required rows="7" placeholder="Descreva o problema, o equipamento afetado, quando comecou, a mensagem de erro e o impacto na rotina."></textarea>
           </label>
           <div class="actions span-2">
             <button class="primary" type="submit">Abrir chamado</button>

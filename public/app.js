@@ -14,6 +14,8 @@ const formMessage = document.querySelector("#formMessage");
 const adminList = document.querySelector("#adminList");
 const mineList = document.querySelector("#mineList");
 const template = document.querySelector("#ticketTemplate");
+const successNotice = document.querySelector("#successNotice");
+const successMessage = document.querySelector("#successMessage");
 
 init();
 
@@ -57,7 +59,9 @@ function bindForms() {
         body: JSON.stringify(payload)
       });
       ticketForm.reset();
-      formMessage.textContent = `Chamado ${ticket.id} aberto e e-mail enviado com sucesso.`;
+      applyIdentityFields();
+      formMessage.textContent = "";
+      showSuccess(ticket);
       state.mineEmail = ticket.requesterEmail;
       document.querySelector("#mineEmail").value = ticket.requesterEmail;
       await loadTickets();
@@ -72,6 +76,9 @@ function bindForms() {
   document.querySelector("#refreshAdmin").addEventListener("click", loadTickets);
   document.querySelector("#adminSearch").addEventListener("input", renderAdmin);
   document.querySelector("#statusFilter").addEventListener("change", renderAdmin);
+  document.querySelector("#dismissSuccess").addEventListener("click", () => {
+    successNotice.hidden = true;
+  });
   document.querySelector("#mineSearch").addEventListener("click", () => {
     state.mineEmail = document.querySelector("#mineEmail").value.trim().toLowerCase();
     renderMine();
@@ -116,10 +123,13 @@ function setupAuthenticatedUi() {
   if (state.currentUser) {
     document.querySelector("#userName").textContent = `${state.currentUser.name} (${state.currentUser.email})`;
     document.querySelector("#userBar").hidden = false;
-    ticketForm.requesterName.value = state.currentUser.name;
-    ticketForm.requesterEmail.value = state.currentUser.email;
-    ticketForm.requesterName.readOnly = true;
-    ticketForm.requesterEmail.readOnly = true;
+    document.querySelector("#accountName").textContent = state.currentUser.name;
+    document.querySelector("#accountEmail").textContent = state.currentUser.email;
+    document.querySelector("#accountCard").hidden = false;
+    document.querySelectorAll(".identity-field").forEach((field) => {
+      field.hidden = true;
+    });
+    applyIdentityFields();
     document.querySelector("#mineEmail").value = state.currentUser.email;
     document.querySelector("#mineEmail").readOnly = true;
     state.mineEmail = state.currentUser.email;
@@ -129,6 +139,18 @@ function setupAuthenticatedUi() {
   if (adminTab && !state.isSupport) {
     adminTab.hidden = true;
   }
+}
+
+function applyIdentityFields() {
+  if (!state.currentUser) return;
+  ticketForm.requesterName.value = state.currentUser.name;
+  ticketForm.requesterEmail.value = state.currentUser.email;
+}
+
+function showSuccess(ticket) {
+  successMessage.textContent = `${ticket.id} foi registrado e a TI recebeu a notificacao por e-mail.`;
+  successNotice.hidden = false;
+  successNotice.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 async function loadTickets() {
