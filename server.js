@@ -54,7 +54,8 @@ const server = http.createServer(async (req, res) => {
       const db = readDb();
       db.tickets.push(ticket);
       writeDb(db);
-      await notifyNewTicket(ticket);
+      const notification = await safeNotify(() => notifyNewTicket(ticket));
+      if (notification.error) ticket.notificationWarning = notification.error;
       return sendJson(res, 201, ticket);
     }
 
@@ -67,7 +68,8 @@ const server = http.createServer(async (req, res) => {
 
       const events = updateTicket(ticket, payload);
       writeDb(db);
-      await notifyTicketEvents(ticket, events);
+      const notification = await safeNotify(() => notifyTicketEvents(ticket, events));
+      if (notification.error) ticket.notificationWarning = notification.error;
       return sendJson(res, 200, ticket);
     }
 
@@ -268,6 +270,28 @@ async function notifyNewTicket(ticket) {
     subject,
     text
   });
+}
+
+async function safeNotify(task) {
+  try {
+    await task();
+    return { ok: true };
+  } catch (error) {
+    const detail = normalizeMailError(error);
+    console.error(`Falha ao enviar notificacao: ${detail}`);
+    return { ok: false, error: detail };
+  }
+}
+
+function normalizeMailError(error) {
+  const text = String(error && error.message ? error.message : error || "erro desconhecido").trim();
+  if (text.includes("535") || text.toLowerCase().includes("authentication")) {
+    return "Chamado salvo, mas o e-mail nao foi enviado: falha de autenticacao SMTP. Confira usuario, senha e SMTP AUTH.";
+  }
+  if (text.includes("5.7") || text.toLowerCase().includes("smtp auth")) {
+    return "Chamado salvo, mas o e-mail nao foi enviado: SMTP AUTH pode estar bloqueado para essa caixa.";
+  }
+  return `Chamado salvo, mas o e-mail nao foi enviado: ${text.slice(0, 300)}`;
 }
 
 async function notifyTicketEvents(ticket, events) {

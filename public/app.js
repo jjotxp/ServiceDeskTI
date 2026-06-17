@@ -44,7 +44,9 @@ function bindForms() {
         body: JSON.stringify(payload)
       });
       ticketForm.reset();
-      formMessage.textContent = `Chamado ${ticket.id} aberto com sucesso.`;
+      formMessage.textContent = ticket.notificationWarning
+        ? `Chamado ${ticket.id} aberto, mas houve falha no e-mail.`
+        : `Chamado ${ticket.id} aberto com sucesso.`;
       state.mineEmail = ticket.requesterEmail;
       document.querySelector("#mineEmail").value = ticket.requesterEmail;
       await loadTickets();
@@ -152,11 +154,11 @@ function ticketNode(ticket, editable) {
     const button = form.querySelector("button");
     button.textContent = "Salvando...";
     button.disabled = true;
-    await api(`/api/tickets/${ticket.id}`, {
+    const updated = await api(`/api/tickets/${ticket.id}`, {
       method: "PATCH",
       body: JSON.stringify(Object.fromEntries(new FormData(form).entries()))
     });
-    button.textContent = "Salvo";
+    button.textContent = updated.notificationWarning ? "Salvo, e-mail falhou" : "Salvo";
     await loadTickets();
   });
 
