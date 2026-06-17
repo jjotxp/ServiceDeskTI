@@ -26,7 +26,8 @@ const config = {
     user: process.env.SMTP_USER || "",
     pass: process.env.SMTP_PASS || "",
     from: process.env.SMTP_FROM || process.env.SMTP_USER || "servicedesk@localhost",
-    timeoutMs: Number(process.env.SMTP_TIMEOUT_MS || 15000)
+    timeoutMs: Number(process.env.SMTP_TIMEOUT_MS || 15000),
+    maxAttempts: Number(process.env.SMTP_MAX_ATTEMPTS || 3)
   }
 };
 
@@ -364,33 +365,48 @@ async function sendSmtpMail(message) {
     return Promise.reject(new Error("Configure SMTP_HOST, SMTP_USER e SMTP_PASS para envio real."));
   }
 
-  const smtpAddress = await resolveSmtpHost(config.smtp.host);
-  const transporter = nodemailer.createTransport({
-    host: smtpAddress,
-    port: config.smtp.port,
-    secure: config.smtp.secure,
-    requireTLS: config.smtp.port === 587,
-    connectionTimeout: config.smtp.timeoutMs,
-    greetingTimeout: config.smtp.timeoutMs,
-    socketTimeout: config.smtp.timeoutMs,
-    tls: {
-      servername: config.smtp.host
-    },
-    auth: {
-      user: config.smtp.user,
-      pass: config.smtp.pass
-    }
-  });
+  const smtpAddresses = await resolveSmtpHosts(config.smtp.host);
+  const attempts = smtpAddresses.slice(0, Math.max(1, config.smtp.maxAttempts));
+  let lastError;
 
-  return transporter.sendMail({
-    from: message.from,
-    to: message.to,
-    subject: message.subject,
-    text: message.text
-  });
+  for (const smtpAddress of attempts) {
+    try {
+      console.log(`Tentando SMTP ${config.smtp.host}:${config.smtp.port} via ${smtpAddress}`);
+      const transporter = nodemailer.createTransport({
+        host: smtpAddress,
+        port: config.smtp.port,
+        secure: config.smtp.secure,
+        requireTLS: config.smtp.port === 587,
+        connectionTimeout: config.smtp.timeoutMs,
+        greetingTimeout: config.smtp.timeoutMs,
+        socketTimeout: config.smtp.timeoutMs,
+        tls: {
+          servername: config.smtp.host
+        },
+        auth: {
+          user: config.smtp.user,
+          pass: config.smtp.pass
+        }
+      });
+
+      return await transporter.sendMail({
+        from: message.from,
+        to: message.to,
+        subject: message.subject,
+        text: message.text
+      });
+    } catch (error) {
+      lastError = error;
+      console.warn(`Falha SMTP via ${smtpAddress}: ${error.message}`);
+    }
+  }
+
+  throw lastError || new Error("Nenhum endereco SMTP IPv4 disponivel.");
 }
 
-async function resolveSmtpHost(host) {
-  const records = await dns.lookup(host, { family: 4 });
-  return records.address;
+async function resolveSmtpHosts(host) {
+  const records = await dns.resolve4(host);
+  if (records.length) return records;
+  const fallback = await dns.lookup(host, { family: 4 });
+  return [fallback.address];
 }
