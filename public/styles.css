@@ -506,6 +506,14 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
+.asset-filter input {
+  min-width: min(100%, 520px);
+}
+
+.asset-filter select {
+  max-width: 220px;
+}
+
 .metrics {
   display: grid;
   gap: 12px;

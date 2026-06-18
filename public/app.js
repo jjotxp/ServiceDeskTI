@@ -22,6 +22,8 @@ const assetForm = document.querySelector("#assetForm");
 const assetList = document.querySelector("#assetList");
 const assetMessage = document.querySelector("#assetMessage");
 const cancelAssetEdit = document.querySelector("#cancelAssetEdit");
+const assetSearch = document.querySelector("#assetSearch");
+const assetStatusFilter = document.querySelector("#assetStatusFilter");
 const successNotice = document.querySelector("#successNotice");
 const successMessage = document.querySelector("#successMessage");
 const userMenuButton = document.querySelector("#userMenuButton");
@@ -139,6 +141,8 @@ function bindForms() {
   });
 
   document.querySelector("#refreshAssets").addEventListener("click", loadAssets);
+  assetSearch.addEventListener("input", renderAssets);
+  assetStatusFilter.addEventListener("change", renderAssets);
 }
 
 async function loadConfig() {
@@ -271,8 +275,35 @@ function renderAssets() {
     return;
   }
 
+  const term = assetSearch.value.trim().toLowerCase();
+  const statusFilter = assetStatusFilter.value;
+  const assets = state.assets.filter((asset) => {
+    const status = asset.status || "Pendente";
+    const haystack = [
+      asset.name,
+      asset.ipAddress,
+      asset.type,
+      asset.department,
+      asset.owner,
+      asset.inventoryNumber,
+      asset.notes,
+      assetMemorySummary(asset),
+      assetDiskSummary(asset),
+      assetOsSummary(asset)
+    ]
+      .join(" ")
+      .toLowerCase();
+    return (!statusFilter || status === statusFilter) && (!term || haystack.includes(term));
+  });
+
+  if (!assets.length) {
+    assetList.className = "asset-list empty";
+    assetList.textContent = "Nenhum ativo encontrado para esse filtro.";
+    return;
+  }
+
   assetList.className = "asset-list";
-  state.assets.forEach((asset) => assetList.appendChild(assetNode(asset)));
+  assets.forEach((asset) => assetList.appendChild(assetNode(asset)));
 }
 
 function assetNode(asset) {
