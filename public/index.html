@@ -181,81 +181,53 @@
         </div>
 
         <form id="assetForm" class="asset-form">
-          <div class="asset-form-tabs" role="tablist" aria-label="Secoes do cadastro de ativo">
-            <button class="asset-form-tab active" type="button" data-asset-tab="general">Dados gerais</button>
-            <button class="asset-form-tab" type="button" data-asset-tab="memory">Memoria RAM</button>
-            <button class="asset-form-tab" type="button" data-asset-tab="disk">Disco rigido</button>
-            <button class="asset-form-tab" type="button" data-asset-tab="os">Sistema operacional</button>
-          </div>
-          <div class="asset-form-panel active" data-asset-panel="general">
-            <label>
-              Nome
-              <input name="name" required placeholder="NOTE-FIN-01" />
-            </label>
-            <label>
-              IP
-              <input name="ipAddress" required placeholder="192.168.1.25" />
-            </label>
-            <label>
-              Tipo
-              <select name="type">
-                <option>Computador</option>
-                <option>Notebook</option>
-                <option>Servidor</option>
-                <option>Impressora</option>
-                <option>Rede</option>
-                <option>Outro</option>
-              </select>
-            </label>
-            <label>
-              Setor
-              <input name="department" placeholder="Financeiro" />
-            </label>
-            <label>
-              Responsavel
-              <input name="owner" placeholder="Nome do usuario" />
-            </label>
-            <label class="span-2">
-              Observacoes
-              <input name="notes" placeholder="Local, funcao ou detalhe importante" />
-            </label>
-          </div>
-          <div class="asset-form-panel" data-asset-panel="memory">
-            <label>
-              Capacidade RAM (GB)
-              <input name="memoryRamCapacityGb" type="number" min="0" step="1" placeholder="16" />
-            </label>
-            <label>
-              Tipo/modelo
-              <input name="memoryRamType" placeholder="DDR4, DDR5, 3200 MHz..." />
-            </label>
-          </div>
-          <div class="asset-form-panel" data-asset-panel="disk">
-            <label>
-              Capacidade disco (GB)
-              <input name="hardDiskCapacityGb" type="number" min="0" step="1" placeholder="512" />
-            </label>
-            <label>
-              Tipo
-              <select name="hardDiskType">
-                <option value="">Selecione</option>
-                <option>HD</option>
-                <option>SSD</option>
-                <option>NVMe</option>
-                <option>Outro</option>
-              </select>
-            </label>
-          </div>
-          <div class="asset-form-panel" data-asset-panel="os">
-            <label>
-              Sistema operacional
-              <input name="operatingSystemName" placeholder="Windows 11 Pro" />
-            </label>
-            <label>
-              Versao
-              <input name="operatingSystemVersion" placeholder="23H2, build 22631..." />
-            </label>
-          </div>
+          <label>
+            Nome
+            <input name="name" required placeholder="NOTE-FIN-01" />
+          </label>
+          <label>
+            IP
+            <input name="ipAddress" required placeholder="192.168.1.25" />
+          </label>
+          <label>
+            Tipo
+            <select name="type">
+              <option>Computador</option>
+              <option>Notebook</option>
+              <option>Servidor</option>
+              <option>Impressora</option>
+              <option>Rede</option>
+              <option>Outro</option>
+            </select>
+          </label>
+          <label>
+            Setor
+            <input name="department" placeholder="Financeiro" />
+          </label>
+          <label>
+            Responsavel
+            <input name="owner" placeholder="Nome do usuario" />
+          </label>
+          <label>
+            Memoria
+            <input name="memoryRam" placeholder="16 GB DDR4" />
+          </label>
+          <label>
+            Disco
+            <input name="hardDisk" placeholder="512 GB SSD" />
+          </label>
+          <label>
+            Sistema operacional
+            <input name="operatingSystem" placeholder="Windows 11 Pro" />
+          </label>
+          <label>
+            Numero de inventario
+            <input name="inventoryNumber" placeholder="INV-000123" />
+          </label>
+          <label class="span-3">
+            Observacoes
+            <input name="notes" placeholder="Local, funcao ou detalhe importante" />
+          </label>
           <div class="actions">
             <button class="primary" type="submit">Cadastrar ativo</button>
             <button id="cancelAssetEdit" class="secondary" type="button" hidden>Cancelar edicao</button>
@@ -319,6 +291,7 @@
             <div><dt>IP</dt><dd class="asset-ip"></dd></div>
             <div><dt>Tipo</dt><dd class="asset-type"></dd></div>
             <div><dt>Setor</dt><dd class="asset-department"></dd></div>
+            <div><dt>Inventario</dt><dd class="asset-inventory"></dd></div>
             <div><dt>Ultima checagem</dt><dd class="asset-checked"></dd></div>
           </dl>
           <div class="asset-components">

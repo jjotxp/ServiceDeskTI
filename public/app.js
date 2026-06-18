@@ -139,9 +139,6 @@ function bindForms() {
   });
 
   document.querySelector("#refreshAssets").addEventListener("click", loadAssets);
-  document.querySelectorAll(".asset-form-tab").forEach((tab) => {
-    tab.addEventListener("click", () => showAssetFormTab(tab.dataset.assetTab));
-  });
 }
 
 async function loadConfig() {
@@ -287,6 +284,7 @@ function assetNode(asset) {
   node.querySelector(".asset-ip").textContent = asset.ipAddress;
   node.querySelector(".asset-type").textContent = asset.type || "-";
   node.querySelector(".asset-department").textContent = asset.department || "-";
+  node.querySelector(".asset-inventory").textContent = asset.inventoryNumber || "-";
   node.querySelector(".asset-checked").textContent = asset.lastCheckedAt ? formatDate(asset.lastCheckedAt) : "Nunca";
   const memorySummary = assetMemorySummary(asset);
   const diskSummary = assetDiskSummary(asset);
@@ -316,17 +314,14 @@ function startAssetEdit(asset) {
   assetForm.type.value = asset.type || "Computador";
   assetForm.department.value = asset.department || "";
   assetForm.owner.value = asset.owner || "";
+  assetForm.inventoryNumber.value = asset.inventoryNumber || "";
   assetForm.notes.value = asset.notes || "";
-  assetForm.memoryRamCapacityGb.value = asset.memoryRam?.capacityGb || "";
-  assetForm.memoryRamType.value = asset.memoryRam?.type || "";
-  assetForm.hardDiskCapacityGb.value = asset.hardDisk?.capacityGb || "";
-  assetForm.hardDiskType.value = asset.hardDisk?.type || "";
-  assetForm.operatingSystemName.value = asset.operatingSystem?.name || "";
-  assetForm.operatingSystemVersion.value = asset.operatingSystem?.version || "";
+  assetForm.memoryRam.value = assetComponentValue(asset.memoryRam);
+  assetForm.hardDisk.value = assetComponentValue(asset.hardDisk);
+  assetForm.operatingSystem.value = assetOperatingSystemValue(asset);
   assetForm.querySelector("button[type='submit']").textContent = "Salvar alteracoes";
   cancelAssetEdit.hidden = false;
   showAssetMessage(`Editando ${asset.name}.`);
-  showAssetFormTab("general");
   assetForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -334,7 +329,6 @@ function resetAssetFormMode() {
   state.editingAssetId = null;
   assetForm.querySelector("button[type='submit']").textContent = "Cadastrar ativo";
   cancelAssetEdit.hidden = true;
-  showAssetFormTab("general");
 }
 
 async function deleteAsset(asset) {
@@ -362,29 +356,18 @@ function assetPayloadFromForm() {
     type: data.type,
     department: data.department,
     owner: data.owner,
+    inventoryNumber: data.inventoryNumber,
     notes: data.notes,
     memoryRam: {
-      capacityGb: data.memoryRamCapacityGb,
-      type: data.memoryRamType
+      type: data.memoryRam
     },
     hardDisk: {
-      capacityGb: data.hardDiskCapacityGb,
-      type: data.hardDiskType
+      type: data.hardDisk
     },
     operatingSystem: {
-      name: data.operatingSystemName,
-      version: data.operatingSystemVersion
+      name: data.operatingSystem
     }
   };
-}
-
-function showAssetFormTab(tabId) {
-  document.querySelectorAll(".asset-form-tab").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.assetTab === tabId);
-  });
-  document.querySelectorAll(".asset-form-panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.dataset.assetPanel === tabId);
-  });
 }
 
 function showAssetMessage(message, temporary = false) {
@@ -420,6 +403,15 @@ function assetOsSummary(asset) {
   const version = asset.operatingSystem?.version;
   if (!name && !version) return "";
   return `SO: ${[name, version].filter(Boolean).join(" ")}`;
+}
+
+function assetComponentValue(component) {
+  if (!component) return "";
+  return [component.capacityGb ? `${component.capacityGb} GB` : "", component.type].filter(Boolean).join(" ");
+}
+
+function assetOperatingSystemValue(asset) {
+  return [asset.operatingSystem?.name || asset.os, asset.operatingSystem?.version].filter(Boolean).join(" ");
 }
 
 function renderMine() {

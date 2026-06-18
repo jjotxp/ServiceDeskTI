@@ -558,6 +558,7 @@ function createAsset(payload) {
     type: clean(payload.type || "Computador"),
     department: clean(payload.department),
     owner: clean(payload.owner),
+    inventoryNumber: clean(payload.inventoryNumber),
     notes: clean(payload.notes),
     memoryRam: normalizeMemoryRam(payload.memoryRam || payload),
     hardDisk: normalizeHardDisk(payload.hardDisk || payload),
@@ -576,7 +577,7 @@ function createAsset(payload) {
 }
 
 function updateAsset(asset, payload) {
-  const fields = ["name", "ipAddress", "type", "department", "owner", "notes"];
+  const fields = ["name", "ipAddress", "type", "department", "owner", "inventoryNumber", "notes"];
   for (const field of fields) {
     if (typeof payload[field] === "string") asset[field] = clean(payload[field]);
   }

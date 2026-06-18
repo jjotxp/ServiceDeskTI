@@ -414,42 +414,9 @@ main {
   box-shadow: var(--shadow);
   display: grid;
   gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 18px;
   padding: 18px;
-}
-
-.asset-form-tabs {
-  background: #edf5ff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px;
-}
-
-.asset-form-tab {
-  background: transparent;
-  border-radius: 6px;
-  color: var(--muted);
-  min-height: 38px;
-  padding: 0 12px;
-}
-
-.asset-form-tab.active {
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(10, 37, 84, 0.1);
-  color: var(--brand);
-}
-
-.asset-form-panel {
-  display: none;
-}
-
-.asset-form-panel.active {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 label {
@@ -487,6 +454,10 @@ textarea:focus {
 
 .span-2 {
   grid-column: span 2;
+}
+
+.span-3 {
+  grid-column: span 3;
 }
 
 .actions,
@@ -798,7 +769,6 @@ dd {
 
   .form-grid,
   .asset-form,
-  .asset-form-panel.active,
   .ticket,
   .asset,
   .metrics,
@@ -806,7 +776,8 @@ dd {
     grid-template-columns: 1fr;
   }
 
-  .span-2 {
+  .span-2,
+  .span-3 {
     grid-column: span 1;
   }
 
