@@ -358,9 +358,10 @@ main {
 
 .section-head {
   align-items: center;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(90deg, #0f56a5 0%, #0d5daa 55%, #0a4386 100%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
+  box-shadow: 0 12px 26px rgba(4, 32, 82, 0.18);
   color: #ffffff;
   display: flex;
   gap: 16px;
