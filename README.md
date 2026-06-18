@@ -79,6 +79,7 @@ AUTH_TENANT_ID=Directory tenant ID
 AUTH_CLIENT_ID=Application client ID
 AUTH_CLIENT_SECRET=Client secret value
 AUTH_REDIRECT_URI=https://sua-url-da-railway/auth/callback
+AUTH_ALLOWED_TENANT_IDS=Directory tenant ID
 ADMIN_USERS=joao.silva@aplicativo.net
 SUPPORT_USERS=joao.silva@aplicativo.net
 ```
@@ -95,6 +96,8 @@ Com `AUTH_MODE=entra`, o app passa a:
 - usar automaticamente o nome e e-mail da conta logada;
 - permitir que usuarios comuns vejam apenas os proprios chamados;
 - permitir acesso ao `Painel TI` apenas para e-mails em `SUPPORT_USERS` ou `ADMIN_USERS`.
+
+Por seguranca, usuarios comuns so entram se o e-mail estiver em `ALLOWED_REQUESTER_EMAILS` ou se o dominio estiver em `ALLOWED_REQUESTER_DOMAINS`. Usuarios de TI/admin entram se estiverem em `SUPPORT_USERS` ou `ADMIN_USERS`. O token tambem precisa vir de um tenant listado em `AUTH_ALLOWED_TENANT_IDS` ou do proprio `AUTH_TENANT_ID`.
 
 Opcionalmente, voce pode usar grupos do Entra para permissao do Painel TI. Para isso, configure o app registration para emitir grupos no token e preencha:
 
@@ -183,6 +186,7 @@ AUTH_TENANT_ID=seu-tenant-id
 AUTH_CLIENT_ID=seu-client-id
 AUTH_CLIENT_SECRET=seu-client-secret
 AUTH_REDIRECT_URI=https://seu-app.up.railway.app/auth/callback
+AUTH_ALLOWED_TENANT_IDS=seu-tenant-id
 ADMIN_USERS=joao.silva@aplicativo.net
 SUPPORT_USERS=joao.silva@aplicativo.net
 MONITOR_AGENT_TOKEN=um-token-longo-e-aleatorio

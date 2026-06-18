@@ -31,6 +31,8 @@ const config = {
     redirectUri: process.env.AUTH_REDIRECT_URI || `http://localhost:${Number(process.env.PORT || 3333)}/auth/callback`,
     supportUsers: parseEmailList(process.env.SUPPORT_USERS || process.env.ADMIN_USERS || process.env.ADMIN_EMAIL || ""),
     adminUsers: parseEmailList(process.env.ADMIN_USERS || process.env.ADMIN_EMAIL || ""),
+    allowedTenantIds: parseList(process.env.AUTH_ALLOWED_TENANT_IDS || process.env.AUTH_TENANT_ID || "")
+      .map((id) => id.toLowerCase()),
     supportGroupIds: parseList(process.env.ENTRA_SUPPORT_GROUP_IDS || "").map((id) => id.toLowerCase()),
     adminGroupIds: parseList(process.env.ENTRA_ADMIN_GROUP_IDS || "").map((id) => id.toLowerCase())
   },
@@ -287,7 +289,7 @@ async function finishLogin(req, res, url) {
     redirectUri: config.auth.redirectUri
   });
   const user = userFromClaims(result.idTokenClaims || {});
-  if (!user.email || !isRequesterAllowed(user.email)) {
+  if (!isLoginAllowed(user)) {
     return sendText(res, 403, "Sua conta nao esta autorizada para acessar o ServiceDesk.");
   }
 
@@ -322,6 +324,7 @@ function userFromClaims(claims) {
   return {
     name: String(claims.name || email || "Usuario"),
     email,
+    tenantId: String(claims.tid || "").toLowerCase(),
     groups: Array.isArray(claims.groups) ? claims.groups.map((group) => String(group).toLowerCase()) : []
   };
 }
@@ -404,6 +407,14 @@ function isAdminUser(user) {
   if (!user) return false;
   if (config.auth.adminUsers.includes(user.email)) return true;
   return user.groups.some((group) => config.auth.adminGroupIds.includes(group));
+}
+
+function isLoginAllowed(user) {
+  if (!user || !user.email) return false;
+  if (config.auth.allowedTenantIds.length && !config.auth.allowedTenantIds.includes(user.tenantId)) return false;
+  if (config.auth.adminUsers.includes(user.email) || config.auth.supportUsers.includes(user.email)) return true;
+  if (!config.allowedRequesterEmails.length && !config.allowedRequesterDomains.length) return false;
+  return isRequesterAllowed(user.email);
 }
 
 function parseCookies(req) {
