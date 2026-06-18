@@ -112,13 +112,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/assets" && req.method === "GET") {
-      const user = requireSupport(req);
+      requireAdmin(req);
       const db = readDb();
       return sendJson(res, 200, db.assets.sort((a, b) => a.name.localeCompare(b.name)));
     }
 
     if (url.pathname === "/api/assets" && req.method === "POST") {
-      requireSupport(req);
+      requireAdmin(req);
       const payload = await readJsonBody(req);
       const db = readDb();
       const asset = createAsset(payload);
@@ -129,7 +129,7 @@ const server = http.createServer(async (req, res) => {
 
     const assetMatch = url.pathname.match(/^\/api\/assets\/([^/]+)$/);
     if (assetMatch && req.method === "PATCH") {
-      requireSupport(req);
+      requireAdmin(req);
       const payload = await readJsonBody(req);
       const db = readDb();
       const asset = db.assets.find((item) => item.id === assetMatch[1]);
@@ -343,6 +343,16 @@ function requireSupport(req) {
   const user = requireUser(req);
   if (!isSupportUser(user)) {
     const error = new Error("Apenas atendentes podem acessar este recurso.");
+    error.status = 403;
+    throw error;
+  }
+  return user;
+}
+
+function requireAdmin(req) {
+  const user = requireUser(req);
+  if (!isAdminUser(user)) {
+    const error = new Error("Apenas administradores podem acessar este recurso.");
     error.status = 403;
     throw error;
   }

@@ -5,7 +5,8 @@ const state = {
   supportAgents: [],
   authEnabled: false,
   currentUser: null,
-  isSupport: false
+  isSupport: false,
+  isAdmin: false
 };
 
 const tabs = document.querySelectorAll(".tab");
@@ -126,6 +127,7 @@ async function loadConfig() {
   if (config.user) {
     state.currentUser = config.user;
     state.isSupport = Boolean(config.isSupport);
+    state.isAdmin = Boolean(config.isAdmin);
   }
 }
 
@@ -135,6 +137,7 @@ async function loadMe() {
   if (me.authenticated) {
     state.currentUser = me.user;
     state.isSupport = Boolean(me.isSupport);
+    state.isAdmin = Boolean(me.isAdmin);
   }
 }
 
@@ -170,7 +173,7 @@ function setupAuthenticatedUi() {
     adminTab.hidden = true;
   }
   const monitorTab = document.querySelector('[data-view="monitor"]');
-  if (monitorTab && !state.isSupport) {
+  if (monitorTab && !state.isAdmin) {
     monitorTab.hidden = true;
   }
 }
@@ -194,7 +197,7 @@ async function loadTickets() {
 }
 
 async function loadAssets() {
-  if (state.authEnabled && !state.isSupport) return;
+  if (state.authEnabled && !state.isAdmin) return;
   state.assets = await api("/api/assets");
   renderAssets();
 }

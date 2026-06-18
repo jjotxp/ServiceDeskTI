@@ -152,7 +152,7 @@ Configure no Railway:
 MONITOR_AGENT_TOKEN=um-token-longo-e-aleatorio
 ```
 
-Depois acesse o Painel TI, abra a aba `Monitoramento` e cadastre os ativos com nome e IP.
+Depois acesse o app com um usuario cadastrado em `ADMIN_USERS`, abra a aba `Gestao de ativos` e cadastre os ativos com nome e IP. Usuarios que estao apenas em `SUPPORT_USERS` continuam acessando o Painel TI, mas nao acessam a gestao de ativos.
 
 Na maquina interna que vai executar o agente, abra o PowerShell na pasta do projeto e configure:
 
