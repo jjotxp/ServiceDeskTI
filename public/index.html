@@ -20,6 +20,7 @@
         <button class="tab active" data-view="open">Abrir chamado</button>
         <button class="tab" data-view="mine">Meus chamados</button>
         <button class="tab" data-view="admin">Painel TI</button>
+        <button class="tab" data-view="monitor">Monitoramento</button>
       </nav>
     </header>
 
@@ -155,6 +156,56 @@
         </div>
         <div id="adminList" class="ticket-list"></div>
       </section>
+
+      <section id="view-monitor" class="view">
+        <div class="section-head">
+          <div>
+            <h2>Monitoramento</h2>
+            <p>Acompanhe ativos internos enviados pelo agente local da rede.</p>
+          </div>
+          <button id="refreshAssets" class="secondary" type="button">Atualizar</button>
+        </div>
+
+        <form id="assetForm" class="asset-form">
+          <label>
+            Nome
+            <input name="name" required placeholder="NOTE-FIN-01" />
+          </label>
+          <label>
+            IP
+            <input name="ipAddress" required placeholder="192.168.1.25" />
+          </label>
+          <label>
+            Tipo
+            <select name="type">
+              <option>Computador</option>
+              <option>Notebook</option>
+              <option>Servidor</option>
+              <option>Impressora</option>
+              <option>Rede</option>
+              <option>Outro</option>
+            </select>
+          </label>
+          <label>
+            Setor
+            <input name="department" placeholder="Financeiro" />
+          </label>
+          <label>
+            Responsavel
+            <input name="owner" placeholder="Nome do usuario" />
+          </label>
+          <label class="span-2">
+            Observacoes
+            <input name="notes" placeholder="Local, funcao ou detalhe importante" />
+          </label>
+          <div class="actions">
+            <button class="primary" type="submit">Cadastrar ativo</button>
+            <p id="assetMessage" class="message" role="status"></p>
+          </div>
+        </form>
+
+        <div class="asset-list" id="assetList"></div>
+      </section>
     </main>
 
     <template id="ticketTemplate">
@@ -195,6 +246,29 @@
           </label>
           <button class="secondary" type="submit">Salvar</button>
         </form>
+      </article>
+    </template>
+
+    <template id="assetTemplate">
+      <article class="asset">
+        <div>
+          <div class="ticket-title-row">
+            <strong class="asset-name"></strong>
+            <span class="status asset-status"></span>
+          </div>
+          <dl>
+            <div><dt>IP</dt><dd class="asset-ip"></dd></div>
+            <div><dt>Tipo</dt><dd class="asset-type"></dd></div>
+            <div><dt>Setor</dt><dd class="asset-department"></dd></div>
+            <div><dt>Ultima checagem</dt><dd class="asset-checked"></dd></div>
+          </dl>
+          <p class="asset-error"></p>
+        </div>
+        <div class="asset-side">
+          <strong>Inventario</strong>
+          <p class="asset-os"></p>
+          <p class="asset-softwares"></p>
+        </div>
       </article>
     </template>
 

@@ -20,6 +20,7 @@ const config = {
   appName: process.env.APP_NAME || "ServiceDesk TI",
   adminEmail: process.env.ADMIN_EMAIL || "ti@suaempresa.com",
   emailMode: (process.env.EMAIL_MODE || "log").toLowerCase(),
+  monitorAgentToken: process.env.MONITOR_AGENT_TOKEN || "",
   allowedRequesterEmails: parseEmailList(process.env.ALLOWED_REQUESTER_EMAILS || ""),
   allowedRequesterDomains: parseDomainList(process.env.ALLOWED_REQUESTER_DOMAINS || ""),
   auth: {
@@ -85,6 +86,7 @@ const server = http.createServer(async (req, res) => {
         isSupport: Boolean(user && isSupportUser(user)),
         isAdmin: Boolean(user && isAdminUser(user)),
         restrictedAccess: config.allowedRequesterEmails.length > 0 || config.allowedRequesterDomains.length > 0,
+        monitorEnabled: Boolean(config.monitorAgentToken),
         supportAgents: config.supportAgents
       });
     }
@@ -107,6 +109,47 @@ const server = http.createServer(async (req, res) => {
         ? db.tickets
         : db.tickets.filter((ticket) => ticket.requesterEmail === user.email);
       return sendJson(res, 200, tickets.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    }
+
+    if (url.pathname === "/api/assets" && req.method === "GET") {
+      const user = requireSupport(req);
+      const db = readDb();
+      return sendJson(res, 200, db.assets.sort((a, b) => a.name.localeCompare(b.name)));
+    }
+
+    if (url.pathname === "/api/assets" && req.method === "POST") {
+      requireSupport(req);
+      const payload = await readJsonBody(req);
+      const db = readDb();
+      const asset = createAsset(payload);
+      db.assets.push(asset);
+      writeDb(db);
+      return sendJson(res, 201, asset);
+    }
+
+    const assetMatch = url.pathname.match(/^\/api\/assets\/([^/]+)$/);
+    if (assetMatch && req.method === "PATCH") {
+      requireSupport(req);
+      const payload = await readJsonBody(req);
+      const db = readDb();
+      const asset = db.assets.find((item) => item.id === assetMatch[1]);
+      if (!asset) return sendJson(res, 404, { error: "Ativo nao encontrado." });
+      updateAsset(asset, payload);
+      writeDb(db);
+      return sendJson(res, 200, asset);
+    }
+
+    if (url.pathname === "/api/monitor/assets" && req.method === "GET") {
+      requireMonitorAgent(req);
+      const db = readDb();
+      return sendJson(res, 200, db.assets.filter((asset) => asset.enabled !== false));
+    }
+
+    if (url.pathname === "/api/monitor/results" && req.method === "POST") {
+      requireMonitorAgent(req);
+      const payload = await readJsonBody(req);
+      const result = saveMonitorResult(payload);
+      return sendJson(res, 202, result);
     }
 
     if (url.pathname === "/api/tickets" && req.method === "POST") {
@@ -296,6 +339,39 @@ function requireUser(req) {
   return user;
 }
 
+function requireSupport(req) {
+  const user = requireUser(req);
+  if (!isSupportUser(user)) {
+    const error = new Error("Apenas atendentes podem acessar este recurso.");
+    error.status = 403;
+    throw error;
+  }
+  return user;
+}
+
+function requireMonitorAgent(req) {
+  if (!config.monitorAgentToken) {
+    const error = new Error("MONITOR_AGENT_TOKEN nao configurado.");
+    error.status = 503;
+    throw error;
+  }
+
+  const header = String(req.headers.authorization || "");
+  const bearer = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
+  const token = String(req.headers["x-monitor-token"] || bearer || "");
+  if (!safeEqual(token, config.monitorAgentToken)) {
+    const error = new Error("Token do agente invalido.");
+    error.status = 401;
+    throw error;
+  }
+}
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function isSupportUser(user) {
   if (!authEnabled) return true;
   if (!user) return false;
@@ -346,12 +422,15 @@ function redirect(res, location) {
 function ensureStore() {
   fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(dbPath)) {
-    writeDb({ tickets: [] });
+    writeDb({ tickets: [], assets: [] });
   }
 }
 
 function readDb() {
-  return JSON.parse(fs.readFileSync(dbPath, "utf8"));
+  const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+  if (!Array.isArray(db.tickets)) db.tickets = [];
+  if (!Array.isArray(db.assets)) db.assets = [];
+  return db;
 }
 
 function writeDb(db) {
@@ -440,6 +519,104 @@ function nextTicketId() {
 
 function clean(value) {
   return String(value || "").trim().slice(0, 5000);
+}
+
+function createAsset(payload) {
+  const name = clean(payload.name);
+  const ipAddress = clean(payload.ipAddress);
+  if (!name || !ipAddress) {
+    const error = new Error("Informe nome e IP do ativo.");
+    error.status = 400;
+    throw error;
+  }
+
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    name,
+    ipAddress,
+    type: clean(payload.type || "Computador"),
+    department: clean(payload.department),
+    owner: clean(payload.owner),
+    notes: clean(payload.notes),
+    enabled: payload.enabled !== false,
+    status: "Pendente",
+    lastCheckedAt: "",
+    lastLatencyMs: null,
+    lastError: "",
+    os: "",
+    softwares: [],
+    createdAt: now,
+    updatedAt: now,
+    history: []
+  };
+}
+
+function updateAsset(asset, payload) {
+  const fields = ["name", "ipAddress", "type", "department", "owner", "notes"];
+  for (const field of fields) {
+    if (typeof payload[field] === "string") asset[field] = clean(payload[field]);
+  }
+  if (typeof payload.enabled === "boolean") asset.enabled = payload.enabled;
+  asset.updatedAt = new Date().toISOString();
+}
+
+function saveMonitorResult(payload) {
+  const name = clean(payload.name || payload.hostname);
+  const ipAddress = clean(payload.ipAddress || payload.ip);
+  if (!name && !ipAddress) {
+    const error = new Error("Resultado precisa informar name/hostname ou ipAddress/ip.");
+    error.status = 400;
+    throw error;
+  }
+
+  const db = readDb();
+  let asset = db.assets.find((item) =>
+    (ipAddress && item.ipAddress === ipAddress) || (name && item.name.toLowerCase() === name.toLowerCase())
+  );
+
+  if (!asset) {
+    asset = createAsset({
+      name: name || ipAddress,
+      ipAddress: ipAddress || name,
+      type: payload.type || "Descoberto",
+      department: payload.department || "",
+      owner: payload.owner || "",
+      notes: "Criado automaticamente pelo agente de monitoramento."
+    });
+    db.assets.push(asset);
+  }
+
+  const checkedAt = clean(payload.checkedAt) || new Date().toISOString();
+  const online = Boolean(payload.online);
+  asset.name = name || asset.name;
+  asset.ipAddress = ipAddress || asset.ipAddress;
+  asset.status = online ? "Online" : "Offline";
+  asset.lastCheckedAt = checkedAt;
+  asset.lastLatencyMs = Number.isFinite(Number(payload.latencyMs)) ? Number(payload.latencyMs) : null;
+  asset.lastError = clean(payload.error);
+  asset.os = clean(payload.os || asset.os);
+  asset.softwares = Array.isArray(payload.softwares)
+    ? payload.softwares.map((item) => clean(item)).filter(Boolean).slice(0, 200)
+    : asset.softwares;
+  asset.updatedAt = new Date().toISOString();
+  asset.history = Array.isArray(asset.history) ? asset.history : [];
+  asset.history.push({
+    at: checkedAt,
+    status: asset.status,
+    latencyMs: asset.lastLatencyMs,
+    error: asset.lastError
+  });
+  asset.history = asset.history.slice(-50);
+  writeDb(db);
+
+  return {
+    id: asset.id,
+    name: asset.name,
+    ipAddress: asset.ipAddress,
+    status: asset.status,
+    lastCheckedAt: asset.lastCheckedAt
+  };
 }
 
 function parseEmailList(value) {

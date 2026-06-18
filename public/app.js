@@ -1,5 +1,6 @@
 const state = {
   tickets: [],
+  assets: [],
   mineEmail: "",
   supportAgents: [],
   authEnabled: false,
@@ -14,6 +15,10 @@ const formMessage = document.querySelector("#formMessage");
 const adminList = document.querySelector("#adminList");
 const mineList = document.querySelector("#mineList");
 const template = document.querySelector("#ticketTemplate");
+const assetTemplate = document.querySelector("#assetTemplate");
+const assetForm = document.querySelector("#assetForm");
+const assetList = document.querySelector("#assetList");
+const assetMessage = document.querySelector("#assetMessage");
 const successNotice = document.querySelector("#successNotice");
 const successMessage = document.querySelector("#successMessage");
 
@@ -41,6 +46,7 @@ function bindNavigation() {
       document.querySelector(`#view-${tab.dataset.view}`).classList.add("active");
       if (tab.dataset.view === "admin") renderAdmin();
       if (tab.dataset.view === "mine") renderMine();
+      if (tab.dataset.view === "monitor") loadAssets();
     });
   });
 }
@@ -83,6 +89,30 @@ function bindForms() {
     state.mineEmail = document.querySelector("#mineEmail").value.trim().toLowerCase();
     renderMine();
   });
+
+  assetForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = assetForm.querySelector("button");
+    button.disabled = true;
+    button.textContent = "Cadastrando...";
+    assetMessage.textContent = "";
+    try {
+      await api("/api/assets", {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(new FormData(assetForm).entries()))
+      });
+      assetForm.reset();
+      assetMessage.textContent = "Ativo cadastrado.";
+      await loadAssets();
+    } catch (error) {
+      assetMessage.textContent = error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Cadastrar ativo";
+    }
+  });
+
+  document.querySelector("#refreshAssets").addEventListener("click", loadAssets);
 }
 
 async function loadConfig() {
@@ -139,6 +169,10 @@ function setupAuthenticatedUi() {
   if (adminTab && !state.isSupport) {
     adminTab.hidden = true;
   }
+  const monitorTab = document.querySelector('[data-view="monitor"]');
+  if (monitorTab && !state.isSupport) {
+    monitorTab.hidden = true;
+  }
 }
 
 function applyIdentityFields() {
@@ -157,6 +191,12 @@ async function loadTickets() {
   state.tickets = await api("/api/tickets");
   renderAdmin();
   renderMine();
+}
+
+async function loadAssets() {
+  if (state.authEnabled && !state.isSupport) return;
+  state.assets = await api("/api/assets");
+  renderAssets();
 }
 
 async function api(url, options = {}) {
@@ -192,6 +232,38 @@ function renderAdmin() {
   }
   adminList.className = "ticket-list";
   tickets.forEach((ticket) => adminList.appendChild(ticketNode(ticket, true)));
+}
+
+function renderAssets() {
+  assetList.innerHTML = "";
+  if (!state.assets.length) {
+    assetList.className = "asset-list empty";
+    assetList.textContent = "Nenhum ativo cadastrado ainda.";
+    return;
+  }
+
+  assetList.className = "asset-list";
+  state.assets.forEach((asset) => assetList.appendChild(assetNode(asset)));
+}
+
+function assetNode(asset) {
+  const node = assetTemplate.content.firstElementChild.cloneNode(true);
+  const status = asset.status || "Pendente";
+  node.querySelector(".asset-name").textContent = asset.name;
+  node.querySelector(".asset-status").textContent = status;
+  node.querySelector(".asset-status").dataset.status = status;
+  node.querySelector(".asset-ip").textContent = asset.ipAddress;
+  node.querySelector(".asset-type").textContent = asset.type || "-";
+  node.querySelector(".asset-department").textContent = asset.department || "-";
+  node.querySelector(".asset-checked").textContent = asset.lastCheckedAt ? formatDate(asset.lastCheckedAt) : "Nunca";
+  node.querySelector(".asset-error").textContent = asset.lastError || "";
+  node.querySelector(".asset-error").hidden = !asset.lastError;
+  node.querySelector(".asset-os").textContent = asset.os ? `SO: ${asset.os}` : "SO ainda nao coletado";
+  const softwares = Array.isArray(asset.softwares) ? asset.softwares.slice(0, 8) : [];
+  node.querySelector(".asset-softwares").textContent = softwares.length
+    ? `Softwares: ${softwares.join(", ")}`
+    : "Softwares ainda nao coletados";
+  return node;
 }
 
 function renderMine() {

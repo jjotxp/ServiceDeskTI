@@ -142,6 +142,28 @@ GRAPH_TIMEOUT_MS=15000
 
 A App Registration precisa da permissao de aplicativo `Mail.Send` no Microsoft Graph e consentimento de administrador. O endpoint usado e `POST /users/{id | userPrincipalName}/sendMail`.
 
+## Monitoramento de ativos na rede
+
+O ServiceDeskTI pode receber resultados de um agente local executado dentro da rede da empresa. O app no Railway funciona como painel central; o agente PowerShell faz as checagens internas e envia os resultados por HTTPS.
+
+Configure no Railway:
+
+```env
+MONITOR_AGENT_TOKEN=um-token-longo-e-aleatorio
+```
+
+Depois acesse o Painel TI, abra a aba `Monitoramento` e cadastre os ativos com nome e IP.
+
+Na maquina interna que vai executar o agente, abra o PowerShell na pasta do projeto e configure:
+
+```powershell
+$env:SERVICEDESK_URL="https://seu-app.up.railway.app"
+$env:MONITOR_AGENT_TOKEN="o-mesmo-token-configurado-no-railway"
+.\agent\monitor.ps1
+```
+
+O agente busca os ativos em `/api/monitor/assets`, testa conectividade por ping e envia resultados para `/api/monitor/results`. Quando o ativo cadastrado for a propria maquina onde o agente roda, ele tambem envia sistema operacional e uma lista basica de softwares instalados.
+
 ## Railway
 
 Para publicar na Railway:
@@ -163,6 +185,7 @@ AUTH_CLIENT_SECRET=seu-client-secret
 AUTH_REDIRECT_URI=https://seu-app.up.railway.app/auth/callback
 ADMIN_USERS=joao.silva@aplicativo.net
 SUPPORT_USERS=joao.silva@aplicativo.net
+MONITOR_AGENT_TOKEN=um-token-longo-e-aleatorio
 EMAIL_MODE=smtp
 SMTP_HOST=smtp.office365.com
 SMTP_PORT=587

@@ -270,6 +270,18 @@ main {
   padding: 22px;
 }
 
+.asset-form {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+  padding: 18px;
+}
+
 label {
   color: #354154;
   display: grid;
@@ -376,12 +388,18 @@ textarea:focus {
   gap: 14px;
 }
 
-.ticket-list.empty {
+.ticket-list.empty,
+.asset-list.empty {
   background: #ffffff;
   border: 1px dashed #aab5c4;
   border-radius: 8px;
   color: var(--muted);
   padding: 22px;
+}
+
+.asset-list {
+  display: grid;
+  gap: 14px;
 }
 
 .ticket {
@@ -393,6 +411,37 @@ textarea:focus {
   gap: 18px;
   grid-template-columns: minmax(0, 1fr) 320px;
   padding: 18px;
+}
+
+.asset {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(29, 36, 48, 0.06);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  padding: 18px;
+}
+
+.asset-side {
+  border-left: 1px solid var(--line);
+  color: #354154;
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+}
+
+.asset-side p,
+.asset-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-error {
+  color: var(--red);
+  font-weight: 700;
+  margin-top: 12px;
 }
 
 .ticket-title-row {
@@ -425,6 +474,21 @@ textarea:focus {
 .status[data-status="Aguardando usuario"] {
   background: #fef3c7;
   color: var(--amber);
+}
+
+.status[data-status="Online"] {
+  background: #dcfce7;
+  color: var(--green);
+}
+
+.status[data-status="Offline"] {
+  background: #fee2e2;
+  color: var(--red);
+}
+
+.status[data-status="Pendente"] {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .priority {
@@ -493,7 +557,9 @@ dd {
   }
 
   .form-grid,
+  .asset-form,
   .ticket,
+  .asset,
   .metrics,
   dl {
     grid-template-columns: 1fr;
@@ -504,6 +570,13 @@ dd {
   }
 
   .admin-edit {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 16px;
+  }
+
+  .asset-side {
     border-left: 0;
     border-top: 1px solid var(--line);
     padding-left: 0;
