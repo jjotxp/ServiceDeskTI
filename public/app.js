@@ -292,6 +292,7 @@ function assetNode(asset) {
     ? `Softwares: ${softwares.join(", ")}`
     : "Softwares ainda nao coletados";
   node.querySelector(".asset-edit-button").addEventListener("click", () => startAssetEdit(asset));
+  node.querySelector(".asset-delete-button").addEventListener("click", () => deleteAsset(asset));
   return node;
 }
 
@@ -313,6 +314,23 @@ function resetAssetFormMode() {
   state.editingAssetId = null;
   assetForm.querySelector("button[type='submit']").textContent = "Cadastrar ativo";
   cancelAssetEdit.hidden = true;
+}
+
+async function deleteAsset(asset) {
+  const confirmed = window.confirm(`Excluir o ativo ${asset.name}? Esta acao nao pode ser desfeita.`);
+  if (!confirmed) return;
+
+  try {
+    await api(`/api/assets/${asset.id}`, { method: "DELETE" });
+    if (state.editingAssetId === asset.id) {
+      assetForm.reset();
+      resetAssetFormMode();
+    }
+    assetMessage.textContent = "Ativo excluido.";
+    await loadAssets();
+  } catch (error) {
+    assetMessage.textContent = error.message;
+  }
 }
 
 function renderMine() {

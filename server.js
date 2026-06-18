@@ -139,6 +139,16 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, asset);
     }
 
+    if (assetMatch && req.method === "DELETE") {
+      requireAdmin(req);
+      const db = readDb();
+      const beforeCount = db.assets.length;
+      db.assets = db.assets.filter((item) => item.id !== assetMatch[1]);
+      if (db.assets.length === beforeCount) return sendJson(res, 404, { error: "Ativo nao encontrado." });
+      writeDb(db);
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (url.pathname === "/api/monitor/assets" && req.method === "GET") {
       requireMonitorAgent(req);
       const db = readDb();
