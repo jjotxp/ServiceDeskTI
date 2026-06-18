@@ -572,11 +572,18 @@ function createAsset(payload) {
     softwares: [],
     createdAt: now,
     updatedAt: now,
-    history: []
+    history: [
+      {
+        at: now,
+        event: "Ativo cadastrado",
+        detail: "Registro criado na gestao de ativos."
+      }
+    ]
   };
 }
 
 function updateAsset(asset, payload) {
+  const beforeAsset = JSON.parse(JSON.stringify(asset));
   const fields = ["name", "ipAddress", "type", "department", "owner", "inventoryNumber", "notes"];
   for (const field of fields) {
     if (typeof payload[field] === "string") asset[field] = clean(payload[field]);
@@ -592,6 +599,13 @@ function updateAsset(asset, payload) {
   }
   if (typeof payload.enabled === "boolean") asset.enabled = payload.enabled;
   asset.updatedAt = new Date().toISOString();
+  asset.history = Array.isArray(asset.history) ? asset.history : [];
+  asset.history.push({
+    at: asset.updatedAt,
+    event: "Ativo atualizado",
+    detail: assetUpdateDetail(beforeAsset, asset)
+  });
+  asset.history = asset.history.slice(-50);
 }
 
 function normalizeMemoryRam(payload) {
@@ -613,6 +627,27 @@ function normalizeOperatingSystem(payload) {
     name: clean(payload.name || payload.operatingSystemName),
     version: clean(payload.version || payload.operatingSystemVersion)
   };
+}
+
+function assetUpdateDetail(beforeAsset, asset) {
+  const changes = [];
+  const fields = [
+    ["Nome", beforeAsset.name, asset.name],
+    ["IP", beforeAsset.ipAddress, asset.ipAddress],
+    ["Tipo", beforeAsset.type, asset.type],
+    ["Setor", beforeAsset.department, asset.department],
+    ["Responsavel", beforeAsset.owner, asset.owner],
+    ["Inventario", beforeAsset.inventoryNumber, asset.inventoryNumber],
+    ["Memoria", beforeAsset.memoryRam?.type, asset.memoryRam?.type],
+    ["Disco", beforeAsset.hardDisk?.type, asset.hardDisk?.type],
+    ["Sistema operacional", beforeAsset.operatingSystem?.name, asset.operatingSystem?.name]
+  ];
+
+  for (const [label, beforeValue, afterValue] of fields) {
+    if (String(beforeValue || "") !== String(afterValue || "")) changes.push(label);
+  }
+
+  return changes.length ? `Campos alterados: ${changes.join(", ")}.` : "Registro salvo sem mudancas nos campos principais.";
 }
 
 function saveMonitorResult(payload) {
@@ -657,6 +692,7 @@ function saveMonitorResult(payload) {
   asset.history = Array.isArray(asset.history) ? asset.history : [];
   asset.history.push({
     at: checkedAt,
+    event: "Monitoramento",
     status: asset.status,
     latencyMs: asset.lastLatencyMs,
     error: asset.lastError

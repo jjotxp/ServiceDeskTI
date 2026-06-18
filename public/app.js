@@ -316,6 +316,8 @@ function assetNode(asset) {
   node.querySelector(".asset-type").textContent = asset.type || "-";
   node.querySelector(".asset-department").textContent = asset.department || "-";
   node.querySelector(".asset-inventory").textContent = asset.inventoryNumber || "-";
+  node.querySelector(".asset-created").textContent = asset.createdAt ? formatDate(asset.createdAt) : "-";
+  node.querySelector(".asset-updated").textContent = asset.updatedAt ? formatDate(asset.updatedAt) : "-";
   node.querySelector(".asset-checked").textContent = asset.lastCheckedAt ? formatDate(asset.lastCheckedAt) : "Nunca";
   const memorySummary = assetMemorySummary(asset);
   const diskSummary = assetDiskSummary(asset);
@@ -335,6 +337,7 @@ function assetNode(asset) {
     : "Softwares ainda nao coletados";
   node.querySelector(".asset-edit-button").addEventListener("click", () => startAssetEdit(asset));
   node.querySelector(".asset-delete-button").addEventListener("click", () => deleteAsset(asset));
+  renderHistoryList(node.querySelector(".asset-history"), asset.history, "Nenhum evento registrado.");
   return node;
 }
 
@@ -476,6 +479,8 @@ function ticketNode(ticket, editable) {
   node.querySelector(".department").textContent = ticket.department;
   node.querySelector(".category").textContent = ticket.category;
   node.querySelector(".created").textContent = formatDate(ticket.createdAt);
+  node.querySelector(".ticket-updated").textContent = ticket.updatedAt ? formatDate(ticket.updatedAt) : "-";
+  renderHistoryList(node.querySelector(".ticket-history"), ticket.history, "Nenhuma movimentacao registrada.");
 
   const form = node.querySelector(".admin-edit");
   if (!editable) {
@@ -537,6 +542,26 @@ function formatDate(value) {
     dateStyle: "short",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function renderHistoryList(list, history, emptyText) {
+  const items = Array.isArray(history) ? history.slice(-5).reverse() : [];
+  list.innerHTML = "";
+  if (!items.length) {
+    const item = document.createElement("li");
+    item.textContent = emptyText;
+    list.appendChild(item);
+    return;
+  }
+
+  items.forEach((entry) => {
+    const item = document.createElement("li");
+    const when = entry.at ? formatDate(entry.at) : "Sem data";
+    const event = entry.event || entry.status || "Evento";
+    const detail = entry.detail || entry.error || "";
+    item.textContent = `${when} - ${event}${detail ? `: ${detail}` : ""}`;
+    list.appendChild(item);
+  });
 }
 
 function initialsFromName(name) {
