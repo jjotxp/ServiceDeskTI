@@ -79,6 +79,14 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/api/config" && req.method === "GET") {
       const user = getCurrentUser(req);
+      if (authEnabled && !user) {
+        return sendJson(res, 200, {
+          appName: config.appName,
+          authEnabled: true,
+          authenticated: false,
+          loginUrl: "/auth/login"
+        });
+      }
       return sendJson(res, 200, {
         appName: config.appName,
         adminEmail: config.adminEmail,
@@ -211,7 +219,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, ticket);
     }
 
-    return serveStatic(url.pathname, res);
+    return serveStatic(req, url.pathname, res);
   } catch (error) {
     if (!error.status || error.status >= 500) {
       console.error(error);
@@ -772,8 +780,11 @@ function sendText(res, status, text) {
   res.end(text);
 }
 
-function serveStatic(urlPath, res) {
+function serveStatic(req, urlPath, res) {
   const requested = urlPath === "/" ? "/index.html" : urlPath;
+  if (authEnabled && requested === "/index.html" && !getCurrentUser(req)) {
+    return sendLoginPage(res);
+  }
   const safePath = path.normalize(decodeURIComponent(requested)).replace(/^(\.\.[/\\])+/, "");
   const filePath = path.join(publicDir, safePath);
   if (!filePath.startsWith(publicDir) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
@@ -789,6 +800,49 @@ function serveStatic(urlPath, res) {
   };
   res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream" });
   fs.createReadStream(filePath).pipe(res);
+}
+
+function sendLoginPage(res) {
+  const appName = escapeHtml(config.appName);
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  res.end(`<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${appName}</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span>
+        <div>
+          <strong class="wordmark">aplicativo<span>.net</span></strong>
+          <p class="product-name">${appName}</p>
+        </div>
+      </div>
+    </header>
+    <section class="auth-gate">
+      <div>
+        <h2>Entrar no ServiceDesk</h2>
+        <p>Use sua conta corporativa autorizada para abrir e acompanhar chamados.</p>
+      </div>
+      <a class="primary login-button" href="/auth/login">Entrar com Microsoft</a>
+    </section>
+  </body>
+</html>`);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 async function notifyNewTicket(ticket) {
