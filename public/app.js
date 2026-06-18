@@ -26,6 +26,7 @@ const successNotice = document.querySelector("#successNotice");
 const successMessage = document.querySelector("#successMessage");
 const userMenuButton = document.querySelector("#userMenuButton");
 const userMenu = document.querySelector("#userMenu");
+let assetMessageTimeout = null;
 
 init();
 
@@ -113,18 +114,18 @@ function bindForms() {
     const isEditing = Boolean(state.editingAssetId);
     button.disabled = true;
     button.textContent = isEditing ? "Salvando..." : "Cadastrando...";
-    assetMessage.textContent = "";
+    showAssetMessage("");
     try {
       await api(isEditing ? `/api/assets/${state.editingAssetId}` : "/api/assets", {
         method: isEditing ? "PATCH" : "POST",
-        body: JSON.stringify(Object.fromEntries(new FormData(assetForm).entries()))
+        body: JSON.stringify(assetPayloadFromForm())
       });
       assetForm.reset();
-      assetMessage.textContent = isEditing ? "Ativo atualizado." : "Ativo cadastrado.";
+      showAssetMessage(isEditing ? "Ativo atualizado." : "Ativo cadastrado.");
       resetAssetFormMode();
       await loadAssets();
     } catch (error) {
-      assetMessage.textContent = error.message;
+      showAssetMessage(error.message);
     } finally {
       button.disabled = false;
       button.textContent = state.editingAssetId ? "Salvar alteracoes" : "Cadastrar ativo";
@@ -134,10 +135,13 @@ function bindForms() {
   cancelAssetEdit.addEventListener("click", () => {
     assetForm.reset();
     resetAssetFormMode();
-    assetMessage.textContent = "";
+    showAssetMessage("");
   });
 
   document.querySelector("#refreshAssets").addEventListener("click", loadAssets);
+  document.querySelectorAll(".asset-form-tab").forEach((tab) => {
+    tab.addEventListener("click", () => showAssetFormTab(tab.dataset.assetTab));
+  });
 }
 
 async function loadConfig() {
@@ -284,6 +288,15 @@ function assetNode(asset) {
   node.querySelector(".asset-type").textContent = asset.type || "-";
   node.querySelector(".asset-department").textContent = asset.department || "-";
   node.querySelector(".asset-checked").textContent = asset.lastCheckedAt ? formatDate(asset.lastCheckedAt) : "Nunca";
+  const memorySummary = assetMemorySummary(asset);
+  const diskSummary = assetDiskSummary(asset);
+  const osSummary = assetOsSummary(asset);
+  node.querySelector(".asset-ram").textContent = memorySummary;
+  node.querySelector(".asset-ram").hidden = !memorySummary;
+  node.querySelector(".asset-disk").textContent = diskSummary;
+  node.querySelector(".asset-disk").hidden = !diskSummary;
+  node.querySelector(".asset-os-summary").textContent = osSummary;
+  node.querySelector(".asset-os-summary").hidden = !osSummary;
   node.querySelector(".asset-error").textContent = asset.lastError || "";
   node.querySelector(".asset-error").hidden = !asset.lastError;
   node.querySelector(".asset-os").textContent = asset.os ? `SO: ${asset.os}` : "SO ainda nao coletado";
@@ -304,9 +317,16 @@ function startAssetEdit(asset) {
   assetForm.department.value = asset.department || "";
   assetForm.owner.value = asset.owner || "";
   assetForm.notes.value = asset.notes || "";
+  assetForm.memoryRamCapacityGb.value = asset.memoryRam?.capacityGb || "";
+  assetForm.memoryRamType.value = asset.memoryRam?.type || "";
+  assetForm.hardDiskCapacityGb.value = asset.hardDisk?.capacityGb || "";
+  assetForm.hardDiskType.value = asset.hardDisk?.type || "";
+  assetForm.operatingSystemName.value = asset.operatingSystem?.name || "";
+  assetForm.operatingSystemVersion.value = asset.operatingSystem?.version || "";
   assetForm.querySelector("button[type='submit']").textContent = "Salvar alteracoes";
   cancelAssetEdit.hidden = false;
-  assetMessage.textContent = `Editando ${asset.name}.`;
+  showAssetMessage(`Editando ${asset.name}.`);
+  showAssetFormTab("general");
   assetForm.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
@@ -314,6 +334,7 @@ function resetAssetFormMode() {
   state.editingAssetId = null;
   assetForm.querySelector("button[type='submit']").textContent = "Cadastrar ativo";
   cancelAssetEdit.hidden = true;
+  showAssetFormTab("general");
 }
 
 async function deleteAsset(asset) {
@@ -326,11 +347,79 @@ async function deleteAsset(asset) {
       assetForm.reset();
       resetAssetFormMode();
     }
-    assetMessage.textContent = "Ativo excluido.";
+    showAssetMessage("Ativo excluido.", true);
     await loadAssets();
   } catch (error) {
-    assetMessage.textContent = error.message;
+    showAssetMessage(error.message);
   }
+}
+
+function assetPayloadFromForm() {
+  const data = Object.fromEntries(new FormData(assetForm).entries());
+  return {
+    name: data.name,
+    ipAddress: data.ipAddress,
+    type: data.type,
+    department: data.department,
+    owner: data.owner,
+    notes: data.notes,
+    memoryRam: {
+      capacityGb: data.memoryRamCapacityGb,
+      type: data.memoryRamType
+    },
+    hardDisk: {
+      capacityGb: data.hardDiskCapacityGb,
+      type: data.hardDiskType
+    },
+    operatingSystem: {
+      name: data.operatingSystemName,
+      version: data.operatingSystemVersion
+    }
+  };
+}
+
+function showAssetFormTab(tabId) {
+  document.querySelectorAll(".asset-form-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.assetTab === tabId);
+  });
+  document.querySelectorAll(".asset-form-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.assetPanel === tabId);
+  });
+}
+
+function showAssetMessage(message, temporary = false) {
+  if (assetMessageTimeout) {
+    clearTimeout(assetMessageTimeout);
+    assetMessageTimeout = null;
+  }
+  assetMessage.textContent = message;
+  if (message && temporary) {
+    assetMessageTimeout = setTimeout(() => {
+      assetMessage.textContent = "";
+      assetMessageTimeout = null;
+    }, 2500);
+  }
+}
+
+function assetMemorySummary(asset) {
+  const capacity = asset.memoryRam?.capacityGb;
+  const type = asset.memoryRam?.type;
+  if (!capacity && !type) return "";
+  return `RAM: ${[capacity ? `${capacity} GB` : "", type].filter(Boolean).join(" ")}`;
+}
+
+function assetDiskSummary(asset) {
+  const capacity = asset.hardDisk?.capacityGb;
+  const type = asset.hardDisk?.type;
+  if (!capacity && !type) return "";
+  return `Disco: ${[capacity ? `${capacity} GB` : "", type].filter(Boolean).join(" ")}`;
+}
+
+function assetOsSummary(asset) {
+  const name = asset.operatingSystem?.name || asset.os;
+  const version = asset.operatingSystem?.version;
+  if (!name && !version) return "";
+  return `SO: ${[name, version].filter(Boolean).join(" ")}`;
 }
 
 function renderMine() {

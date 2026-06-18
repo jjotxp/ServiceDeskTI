@@ -559,6 +559,9 @@ function createAsset(payload) {
     department: clean(payload.department),
     owner: clean(payload.owner),
     notes: clean(payload.notes),
+    memoryRam: normalizeMemoryRam(payload.memoryRam || payload),
+    hardDisk: normalizeHardDisk(payload.hardDisk || payload),
+    operatingSystem: normalizeOperatingSystem(payload.operatingSystem || payload),
     enabled: payload.enabled !== false,
     status: "Pendente",
     lastCheckedAt: "",
@@ -577,8 +580,38 @@ function updateAsset(asset, payload) {
   for (const field of fields) {
     if (typeof payload[field] === "string") asset[field] = clean(payload[field]);
   }
+  if (payload.memoryRam || payload.memoryRamCapacityGb || payload.memoryRamType) {
+    asset.memoryRam = normalizeMemoryRam(payload.memoryRam || payload);
+  }
+  if (payload.hardDisk || payload.hardDiskCapacityGb || payload.hardDiskType) {
+    asset.hardDisk = normalizeHardDisk(payload.hardDisk || payload);
+  }
+  if (payload.operatingSystem || payload.operatingSystemName || payload.operatingSystemVersion) {
+    asset.operatingSystem = normalizeOperatingSystem(payload.operatingSystem || payload);
+  }
   if (typeof payload.enabled === "boolean") asset.enabled = payload.enabled;
   asset.updatedAt = new Date().toISOString();
+}
+
+function normalizeMemoryRam(payload) {
+  return {
+    capacityGb: clean(payload.capacityGb || payload.memoryRamCapacityGb),
+    type: clean(payload.type || payload.memoryRamType)
+  };
+}
+
+function normalizeHardDisk(payload) {
+  return {
+    capacityGb: clean(payload.capacityGb || payload.hardDiskCapacityGb),
+    type: clean(payload.type || payload.hardDiskType)
+  };
+}
+
+function normalizeOperatingSystem(payload) {
+  return {
+    name: clean(payload.name || payload.operatingSystemName),
+    version: clean(payload.version || payload.operatingSystemVersion)
+  };
 }
 
 function saveMonitorResult(payload) {
