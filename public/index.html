@@ -12,16 +12,22 @@
         <p class="eyebrow">Central de atendimento</p>
         <h1 id="appName">ServiceDesk TI</h1>
       </div>
-      <div id="userBar" class="user-bar" hidden>
-        <span id="userName"></span>
-        <a href="/auth/logout">Sair</a>
-      </div>
       <nav class="tabs" aria-label="Navegacao principal">
         <button class="tab active" data-view="open">Abrir chamado</button>
         <button class="tab" data-view="mine">Meus chamados</button>
         <button class="tab" data-view="admin">Painel TI</button>
         <button class="tab" data-view="monitor">Gestao de ativos</button>
       </nav>
+      <div id="userBar" class="user-bar" hidden>
+        <button id="userMenuButton" class="user-menu-button" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Abrir menu do usuario">
+          <span id="userInitials"></span>
+        </button>
+        <div id="userMenu" class="user-menu" hidden>
+          <strong id="userMenuName"></strong>
+          <span id="userMenuEmail"></span>
+          <a href="/auth/logout">Sair</a>
+        </div>
+      </div>
     </header>
 
     <section id="authGate" class="auth-gate" hidden>
@@ -39,7 +45,6 @@
             <h2>Novo chamado</h2>
             <p>Informe o problema para que a TI consiga priorizar e resolver com agilidade.</p>
           </div>
-          <span class="pill" id="emailMode">E-mail: carregando</span>
           <span class="pill muted-pill" id="accessMode">Acesso: carregando</span>
         </div>
 

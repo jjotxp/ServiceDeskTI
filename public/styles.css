@@ -45,14 +45,60 @@ body {
 .user-bar {
   align-items: center;
   display: flex;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
+  position: relative;
 }
 
-.user-bar a {
+.user-menu-button {
+  align-items: center;
+  background: var(--brand);
+  border-radius: 999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 13px;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.user-menu-button:hover,
+.user-menu-button[aria-expanded="true"] {
+  background: var(--brand-strong);
+}
+
+.user-menu {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 8px;
+  min-width: 240px;
+  padding: 14px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 10;
+}
+
+.user-menu strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.user-menu span {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.user-menu a {
+  border-top: 1px solid var(--line);
   color: var(--brand);
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 4px;
+  padding-top: 10px;
   text-decoration: none;
 }
 

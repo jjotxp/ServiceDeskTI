@@ -22,6 +22,8 @@ const assetList = document.querySelector("#assetList");
 const assetMessage = document.querySelector("#assetMessage");
 const successNotice = document.querySelector("#successNotice");
 const successMessage = document.querySelector("#successMessage");
+const userMenuButton = document.querySelector("#userMenuButton");
+const userMenu = document.querySelector("#userMenu");
 
 init();
 
@@ -91,6 +93,18 @@ function bindForms() {
     renderMine();
   });
 
+  userMenuButton.addEventListener("click", () => {
+    const isOpen = !userMenu.hidden;
+    userMenu.hidden = isOpen;
+    userMenuButton.setAttribute("aria-expanded", String(!isOpen));
+  });
+
+  document.addEventListener("click", (event) => {
+    if (userMenu.hidden || document.querySelector("#userBar").contains(event.target)) return;
+    userMenu.hidden = true;
+    userMenuButton.setAttribute("aria-expanded", "false");
+  });
+
   assetForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = assetForm.querySelector("button");
@@ -120,7 +134,6 @@ async function loadConfig() {
   const config = await api("/api/config");
   document.title = config.appName;
   document.querySelector("#appName").textContent = config.appName;
-  document.querySelector("#emailMode").textContent = `E-mail: ${config.emailMode === "graph" ? "Graph ativo" : config.emailMode === "smtp" ? "SMTP ativo" : "modo teste"}`;
   document.querySelector("#accessMode").textContent = `Acesso: ${config.restrictedAccess ? "restrito" : "aberto"}`;
   state.supportAgents = config.supportAgents || [];
   state.authEnabled = Boolean(config.authEnabled);
@@ -154,7 +167,9 @@ function setupAuthenticatedUi() {
   document.querySelector(".tabs").hidden = false;
 
   if (state.currentUser) {
-    document.querySelector("#userName").textContent = `${state.currentUser.name} (${state.currentUser.email})`;
+    document.querySelector("#userInitials").textContent = initialsFromName(state.currentUser.name);
+    document.querySelector("#userMenuName").textContent = state.currentUser.name;
+    document.querySelector("#userMenuEmail").textContent = state.currentUser.email;
     document.querySelector("#userBar").hidden = false;
     document.querySelector("#accountGreeting").textContent = `Ol\u00e1, ${state.currentUser.name}`;
     document.querySelector("#accountEmail").textContent = state.currentUser.email;
@@ -361,4 +376,17 @@ function formatDate(value) {
     dateStyle: "short",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function initialsFromName(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "U";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
