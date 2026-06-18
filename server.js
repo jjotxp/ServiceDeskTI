@@ -872,7 +872,10 @@ function serveStatic(req, urlPath, res) {
     ".js": "application/javascript; charset=utf-8",
     ".svg": "image/svg+xml"
   };
-  res.writeHead(200, securityHeaders({ "Content-Type": types[ext] || "application/octet-stream" }));
+  res.writeHead(200, securityHeaders({
+    "Content-Type": types[ext] || "application/octet-stream",
+    "Cache-Control": "no-store"
+  }));
   fs.createReadStream(filePath).pipe(res);
 }
 
@@ -893,7 +896,7 @@ function sendLoginPage(res) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${appName}</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=20260618-2" />
   </head>
   <body>
     <header class="topbar">

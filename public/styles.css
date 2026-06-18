@@ -358,7 +358,7 @@ main {
 
 .section-head {
   align-items: center;
-  background: linear-gradient(90deg, #0f56a5 0%, #0d5daa 55%, #0a4386 100%);
+  background: #0a4386;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 8px;
   box-shadow: 0 12px 26px rgba(4, 32, 82, 0.18);
@@ -370,8 +370,12 @@ main {
   padding: 18px;
 }
 
+.section-head h2 {
+  color: #ffffff;
+}
+
 .section-head p {
-  color: rgba(255, 255, 255, 0.82);
+  color: #ffffff;
   margin-bottom: 0;
 }
 
