@@ -156,7 +156,7 @@ function setupAuthenticatedUi() {
   if (state.currentUser) {
     document.querySelector("#userName").textContent = `${state.currentUser.name} (${state.currentUser.email})`;
     document.querySelector("#userBar").hidden = false;
-    document.querySelector("#accountName").textContent = state.currentUser.name;
+    document.querySelector("#accountGreeting").textContent = `Ol\u00e1, ${state.currentUser.name}`;
     document.querySelector("#accountEmail").textContent = state.currentUser.email;
     document.querySelector("#accountCard").hidden = false;
     document.querySelectorAll(".identity-field").forEach((field) => {
