@@ -14,6 +14,7 @@ const outboxPath = path.join(dataDir, "email-outbox.log");
 const sessions = new Map();
 
 loadEnv(path.join(rootDir, ".env"));
+const JSON_BODY_LIMIT_BYTES = Number(process.env.JSON_BODY_LIMIT_BYTES || 64 * 1024);
 
 const config = {
   port: Number(process.env.PORT || 3333),
@@ -61,6 +62,7 @@ const config = {
 
 ensureStore();
 const authEnabled = config.auth.mode === "entra";
+validateRuntimeSecurity();
 const msalClient = authEnabled ? createMsalClient() : null;
 
 const server = http.createServer(async (req, res) => {
@@ -80,6 +82,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     refreshSession(req, res);
+    enforceTrustedOrigin(req);
 
     if (url.pathname === "/api/config" && req.method === "GET") {
       const user = getCurrentUser(req);
@@ -285,6 +288,7 @@ async function startLogin(req, res) {
 
   res.writeHead(302, {
     Location: authUrl,
+    ...securityHeaders(),
     "Set-Cookie": cookieHeader("sd_auth_state", state, req, 600)
   });
   res.end();
@@ -317,6 +321,7 @@ async function finishLogin(req, res, url) {
 
   res.writeHead(302, {
     Location: "/",
+    ...securityHeaders(),
     "Set-Cookie": [
       cookieHeader("sd_session", sessionId, req, config.auth.sessionIdleSeconds),
       clearCookieHeader("sd_auth_state", req)
@@ -330,6 +335,7 @@ function logout(req, res) {
   if (cookies.sd_session) sessions.delete(cookies.sd_session);
   res.writeHead(302, {
     Location: "/",
+    ...securityHeaders(),
     "Set-Cookie": clearCookieHeader("sd_session", req)
   });
   res.end();
@@ -343,6 +349,19 @@ function userFromClaims(claims) {
     tenantId: String(claims.tid || "").toLowerCase(),
     groups: Array.isArray(claims.groups) ? claims.groups.map((group) => String(group).toLowerCase()) : []
   };
+}
+
+function validateRuntimeSecurity() {
+  const isRailway = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID);
+  if (isRailway && !authEnabled && process.env.ALLOW_INSECURE_AUTH_OFF !== "true") {
+    throw new Error("AUTH_MODE=entra e obrigatorio na Railway. Defina ALLOW_INSECURE_AUTH_OFF=true apenas para testes temporarios.");
+  }
+  if (!Number.isFinite(config.auth.sessionIdleSeconds) || config.auth.sessionIdleSeconds < 60) {
+    throw new Error("AUTH_SESSION_IDLE_SECONDS precisa ser um numero de pelo menos 60 segundos.");
+  }
+  if (!Number.isFinite(JSON_BODY_LIMIT_BYTES) || JSON_BODY_LIMIT_BYTES < 1024) {
+    throw new Error("JSON_BODY_LIMIT_BYTES precisa ser um numero de pelo menos 1024 bytes.");
+  }
 }
 
 function getCurrentUser(req) {
@@ -457,9 +476,17 @@ function parseCookies(req) {
       .filter(Boolean)
       .map((part) => {
         const eq = part.indexOf("=");
-        return eq === -1 ? [part, ""] : [part.slice(0, eq), decodeURIComponent(part.slice(eq + 1))];
+        return eq === -1 ? [part, ""] : [part.slice(0, eq), safeDecodeURIComponent(part.slice(eq + 1))];
       })
   );
+}
+
+function safeDecodeURIComponent(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return "";
+  }
 }
 
 function cookieHeader(name, value, req, maxAgeSeconds) {
@@ -476,8 +503,23 @@ function isSecureRequest(req) {
   return req.headers["x-forwarded-proto"] === "https";
 }
 
+function requestOrigin(req) {
+  const protocol = isSecureRequest(req) ? "https" : "http";
+  return `${protocol}://${req.headers.host}`;
+}
+
+function enforceTrustedOrigin(req) {
+  if (!["POST", "PATCH", "DELETE", "PUT"].includes(req.method)) return;
+  const origin = req.headers.origin;
+  if (!origin) return;
+  if (origin === requestOrigin(req)) return;
+  const error = new Error("Origem da requisicao nao autorizada.");
+  error.status = 403;
+  throw error;
+}
+
 function redirect(res, location) {
-  res.writeHead(302, { Location: location });
+  res.writeHead(302, securityHeaders({ Location: location }));
   res.end();
 }
 
@@ -775,7 +817,16 @@ function isRequesterAllowed(email) {
 
 async function readJsonBody(req) {
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let size = 0;
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > JSON_BODY_LIMIT_BYTES) {
+      const error = new Error("Payload muito grande.");
+      error.status = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) return {};
   try {
@@ -788,18 +839,18 @@ async function readJsonBody(req) {
 }
 
 function sendJson(res, status, payload) {
-  res.writeHead(status, {
+  res.writeHead(status, securityHeaders({
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store"
-  });
+  }));
   res.end(JSON.stringify(payload));
 }
 
 function sendText(res, status, text) {
-  res.writeHead(status, {
+  res.writeHead(status, securityHeaders({
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "no-store"
-  });
+  }));
   res.end(text);
 }
 
@@ -808,10 +859,10 @@ function serveStatic(req, urlPath, res) {
   if (authEnabled && requested === "/index.html" && !getCurrentUser(req)) {
     return sendLoginPage(res);
   }
-  const safePath = path.normalize(decodeURIComponent(requested)).replace(/^(\.\.[/\\])+/, "");
-  const filePath = path.join(publicDir, safePath);
-  if (!filePath.startsWith(publicDir) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+  const decodedPath = safeDecodeURIComponent(requested);
+  const filePath = path.resolve(publicDir, `.${decodedPath}`);
+  if (!isPathInside(publicDir, filePath) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    res.writeHead(404, securityHeaders({ "Content-Type": "text/plain; charset=utf-8" }));
     return res.end("Nao encontrado.");
   }
   const ext = path.extname(filePath).toLowerCase();
@@ -821,16 +872,21 @@ function serveStatic(req, urlPath, res) {
     ".js": "application/javascript; charset=utf-8",
     ".svg": "image/svg+xml"
   };
-  res.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream" });
+  res.writeHead(200, securityHeaders({ "Content-Type": types[ext] || "application/octet-stream" }));
   fs.createReadStream(filePath).pipe(res);
+}
+
+function isPathInside(parent, child) {
+  const relative = path.relative(parent, child);
+  return Boolean(relative) && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 function sendLoginPage(res) {
   const appName = escapeHtml(config.appName);
-  res.writeHead(200, {
+  res.writeHead(200, securityHeaders({
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-store"
-  });
+  }));
   res.end(`<!doctype html>
 <html lang="pt-BR">
   <head>
@@ -858,6 +914,17 @@ function sendLoginPage(res) {
     </section>
   </body>
 </html>`);
+}
+
+function securityHeaders(headers = {}) {
+  return {
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; object-src 'none'",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    ...headers
+  };
 }
 
 function escapeHtml(value) {
