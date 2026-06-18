@@ -238,6 +238,10 @@ async function api(url, options = {}) {
     ...options
   });
   const data = await response.json();
+  if ((response.status === 401 || response.status === 403) && state.authEnabled) {
+    window.location.href = "/auth/login";
+    throw new Error("Sessao expirada. Redirecionando para login.");
+  }
   if (!response.ok) throw new Error(data.error || "Falha na requisicao.");
   return data;
 }

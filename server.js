@@ -33,6 +33,8 @@ const config = {
     adminUsers: parseEmailList(process.env.ADMIN_USERS || process.env.ADMIN_EMAIL || ""),
     allowedTenantIds: parseList(process.env.AUTH_ALLOWED_TENANT_IDS || process.env.AUTH_TENANT_ID || "")
       .map((id) => id.toLowerCase()),
+    sessionIdleSeconds: Number(process.env.AUTH_SESSION_IDLE_SECONDS || 180),
+    prompt: process.env.AUTH_PROMPT || "login",
     supportGroupIds: parseList(process.env.ENTRA_SUPPORT_GROUP_IDS || "").map((id) => id.toLowerCase()),
     adminGroupIds: parseList(process.env.ENTRA_ADMIN_GROUP_IDS || "").map((id) => id.toLowerCase())
   },
@@ -76,6 +78,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/auth/logout" && req.method === "GET") {
       return logout(req, res);
     }
+
+    refreshSession(req, res);
 
     if (url.pathname === "/api/config" && req.method === "GET") {
       const user = getCurrentUser(req);
@@ -272,7 +276,11 @@ async function startLogin(req, res) {
   const authUrl = await msalClient.getAuthCodeUrl({
     scopes: ["openid", "profile", "email"],
     redirectUri: config.auth.redirectUri,
-    state
+    state,
+    prompt: config.auth.prompt,
+    extraQueryParameters: {
+      max_age: "0"
+    }
   });
 
   res.writeHead(302, {
@@ -304,13 +312,13 @@ async function finishLogin(req, res, url) {
   const sessionId = crypto.randomBytes(32).toString("hex");
   sessions.set(sessionId, {
     user,
-    expiresAt: Date.now() + 8 * 60 * 60 * 1000
+    expiresAt: Date.now() + config.auth.sessionIdleSeconds * 1000
   });
 
   res.writeHead(302, {
     Location: "/",
     "Set-Cookie": [
-      cookieHeader("sd_session", sessionId, req, 8 * 60 * 60),
+      cookieHeader("sd_session", sessionId, req, config.auth.sessionIdleSeconds),
       clearCookieHeader("sd_auth_state", req)
     ]
   });
@@ -339,6 +347,7 @@ function userFromClaims(claims) {
 
 function getCurrentUser(req) {
   if (!authEnabled) return null;
+  if (req.currentUser) return req.currentUser;
   const sessionId = parseCookies(req).sd_session;
   if (!sessionId) return null;
   const session = sessions.get(sessionId);
@@ -347,6 +356,20 @@ function getCurrentUser(req) {
     return null;
   }
   return session.user;
+}
+
+function refreshSession(req, res) {
+  if (!authEnabled) return;
+  const sessionId = parseCookies(req).sd_session;
+  if (!sessionId) return;
+  const session = sessions.get(sessionId);
+  if (!session || session.expiresAt < Date.now()) {
+    sessions.delete(sessionId);
+    return;
+  }
+  session.expiresAt = Date.now() + config.auth.sessionIdleSeconds * 1000;
+  req.currentUser = session.user;
+  res.setHeader("Set-Cookie", cookieHeader("sd_session", sessionId, req, config.auth.sessionIdleSeconds));
 }
 
 function requireUser(req) {
