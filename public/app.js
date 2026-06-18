@@ -6,7 +6,8 @@ const state = {
   authEnabled: false,
   currentUser: null,
   isSupport: false,
-  isAdmin: false
+  isAdmin: false,
+  editingAssetId: null
 };
 
 const tabs = document.querySelectorAll(".tab");
@@ -20,6 +21,7 @@ const assetTemplate = document.querySelector("#assetTemplate");
 const assetForm = document.querySelector("#assetForm");
 const assetList = document.querySelector("#assetList");
 const assetMessage = document.querySelector("#assetMessage");
+const cancelAssetEdit = document.querySelector("#cancelAssetEdit");
 const successNotice = document.querySelector("#successNotice");
 const successMessage = document.querySelector("#successMessage");
 const userMenuButton = document.querySelector("#userMenuButton");
@@ -108,23 +110,31 @@ function bindForms() {
   assetForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = assetForm.querySelector("button");
+    const isEditing = Boolean(state.editingAssetId);
     button.disabled = true;
-    button.textContent = "Cadastrando...";
+    button.textContent = isEditing ? "Salvando..." : "Cadastrando...";
     assetMessage.textContent = "";
     try {
-      await api("/api/assets", {
-        method: "POST",
+      await api(isEditing ? `/api/assets/${state.editingAssetId}` : "/api/assets", {
+        method: isEditing ? "PATCH" : "POST",
         body: JSON.stringify(Object.fromEntries(new FormData(assetForm).entries()))
       });
       assetForm.reset();
-      assetMessage.textContent = "Ativo cadastrado.";
+      assetMessage.textContent = isEditing ? "Ativo atualizado." : "Ativo cadastrado.";
+      resetAssetFormMode();
       await loadAssets();
     } catch (error) {
       assetMessage.textContent = error.message;
     } finally {
       button.disabled = false;
-      button.textContent = "Cadastrar ativo";
+      button.textContent = state.editingAssetId ? "Salvar alteracoes" : "Cadastrar ativo";
     }
+  });
+
+  cancelAssetEdit.addEventListener("click", () => {
+    assetForm.reset();
+    resetAssetFormMode();
+    assetMessage.textContent = "";
   });
 
   document.querySelector("#refreshAssets").addEventListener("click", loadAssets);
@@ -281,7 +291,28 @@ function assetNode(asset) {
   node.querySelector(".asset-softwares").textContent = softwares.length
     ? `Softwares: ${softwares.join(", ")}`
     : "Softwares ainda nao coletados";
+  node.querySelector(".asset-edit-button").addEventListener("click", () => startAssetEdit(asset));
   return node;
+}
+
+function startAssetEdit(asset) {
+  state.editingAssetId = asset.id;
+  assetForm.name.value = asset.name || "";
+  assetForm.ipAddress.value = asset.ipAddress || "";
+  assetForm.type.value = asset.type || "Computador";
+  assetForm.department.value = asset.department || "";
+  assetForm.owner.value = asset.owner || "";
+  assetForm.notes.value = asset.notes || "";
+  assetForm.querySelector("button[type='submit']").textContent = "Salvar alteracoes";
+  cancelAssetEdit.hidden = false;
+  assetMessage.textContent = `Editando ${asset.name}.`;
+  assetForm.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function resetAssetFormMode() {
+  state.editingAssetId = null;
+  assetForm.querySelector("button[type='submit']").textContent = "Cadastrar ativo";
+  cancelAssetEdit.hidden = true;
 }
 
 function renderMine() {

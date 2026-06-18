@@ -481,8 +481,15 @@ textarea:focus {
 }
 
 .secondary {
-  background: rgba(15, 86, 165, 0.12);
+  background: #ffffff;
+  border: 1px solid rgba(15, 86, 165, 0.24);
+  box-shadow: 0 8px 18px rgba(4, 32, 82, 0.12);
   color: var(--brand);
+}
+
+.secondary:hover {
+  background: var(--blue-soft);
+  border-color: rgba(15, 86, 165, 0.38);
 }
 
 .message {
@@ -574,6 +581,11 @@ textarea:focus {
 .asset-error {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.asset-edit-button {
+  justify-self: start;
+  margin-top: 6px;
 }
 
 .asset-error {
