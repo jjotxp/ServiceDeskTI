@@ -172,6 +172,14 @@ $env:MONITOR_AGENT_TOKEN="o-mesmo-token-configurado-no-railway"
 .\agent\monitor.ps1
 ```
 
+Tambem e possivel executar passando os dados direto no comando:
+
+```powershell
+.\agent\monitor.ps1 -ServiceDeskUrl "https://seu-app.up.railway.app" -MonitorToken "o-mesmo-token-configurado-no-railway"
+```
+
+Se `SERVICEDESK_URL` ou `MONITOR_AGENT_TOKEN` nao estiverem definidos, o script vai solicitar os valores no terminal.
+
 O agente busca os ativos em `/api/monitor/assets`, testa conectividade por ping e envia resultados para `/api/monitor/results`. Quando o ativo cadastrado for a propria maquina onde o agente roda, ele tambem envia sistema operacional e uma lista basica de softwares instalados.
 
 ## Railway

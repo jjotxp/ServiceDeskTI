@@ -6,12 +6,31 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function ConvertFrom-SecureStringToPlainText {
+  param([securestring]$SecureValue)
+
+  $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureValue)
+  try {
+    return [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+  } finally {
+    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+  }
+}
+
 if ([string]::IsNullOrWhiteSpace($ServiceDeskUrl)) {
-  throw "Configure SERVICEDESK_URL. Exemplo: https://seu-app.up.railway.app"
+  Write-Host "Informe a URL do ServiceDesk no Railway. Exemplo: https://seu-app.up.railway.app" -ForegroundColor Yellow
+  $ServiceDeskUrl = Read-Host "SERVICEDESK_URL"
 }
 
 if ([string]::IsNullOrWhiteSpace($MonitorToken)) {
-  throw "Configure MONITOR_AGENT_TOKEN com o mesmo valor do Railway."
+  Write-Host "Informe o MONITOR_AGENT_TOKEN com o mesmo valor configurado no Railway." -ForegroundColor Yellow
+  $secureToken = Read-Host "MONITOR_AGENT_TOKEN" -AsSecureString
+  $MonitorToken = ConvertFrom-SecureStringToPlainText -SecureValue $secureToken
+}
+
+if ([string]::IsNullOrWhiteSpace($ServiceDeskUrl) -or [string]::IsNullOrWhiteSpace($MonitorToken)) {
+  Write-Error "SERVICEDESK_URL e MONITOR_AGENT_TOKEN sao obrigatorios para executar o agente."
+  exit 1
 }
 
 $baseUrl = $ServiceDeskUrl.TrimEnd("/")
